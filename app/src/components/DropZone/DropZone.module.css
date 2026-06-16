@@ -29,15 +29,8 @@
 .logo {
   width: 2.25rem;
   height: 2.25rem;
-  background: #dc2626;
   border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-weight: 900;
-  font-size: 1.05rem;
-  font-family: var(--font-ui);
+  object-fit: cover;
   flex-shrink: 0;
   user-select: none;
 }

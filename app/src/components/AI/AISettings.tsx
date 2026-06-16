@@ -30,7 +30,7 @@ export function AISettings({ onClose }: Props) {
         <button className={styles.closeBtn} onClick={onClose} title="Close">✕</button>
       </div>
       <p className={styles.settingsNote}>
-        Enter your Living Documents license key to unlock AI features.
+        Enter your Editar license key to unlock AI features.
         The key is stored locally in your browser — it is only sent to the
         AI server to verify your subscription.
       </p>

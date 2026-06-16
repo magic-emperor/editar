@@ -272,9 +272,9 @@ export function DropZone({ onOpenTool, theme, onToggleTheme }: {
       {/* ── Header ── */}
       <header className={styles.header}>
         <div className={styles.headerLeft}>
-          <div className={styles.logo} aria-hidden>L</div>
+          <img className={styles.logo} src="/EDITAR.png" alt="" aria-hidden />
           <div className={styles.brand}>
-            <span className={styles.brandName}>LIVING DOCUMENTS</span>
+            <span className={styles.brandName}>EDITAR</span>
             <span className={styles.brandSub}>On-Device PDF &amp; Document Workstation</span>
           </div>
         </div>
