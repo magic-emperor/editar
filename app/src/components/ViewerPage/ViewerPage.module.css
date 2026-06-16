@@ -1,0 +1,60 @@
+.page { min-height: 100vh; display: flex; flex-direction: column; background: var(--paper-bg); }
+
+.header {
+  display: flex; align-items: center; gap: 1.25rem;
+  padding: 0.875rem 2rem;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--paper-bg);
+  position: sticky; top: 0; z-index: 10;
+  flex-wrap: wrap;
+}
+.backBtn {
+  padding: 0.35rem 0.85rem;
+  background: var(--paper-sunken); border: 1px solid var(--hairline); border-radius: 6px;
+  font-family: var(--font-ui); font-size: 0.8rem; font-weight: 600; color: var(--ink-secondary);
+  cursor: pointer; flex-shrink: 0; transition: background 130ms ease, color 130ms ease;
+}
+.backBtn:hover { background: var(--hairline); color: var(--ink); }
+.headerMeta { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.toolName { font-family: var(--font-ui); font-size: 1rem; font-weight: 800; color: var(--ink); }
+.toolNote { font-size: 0.78rem; color: var(--ink-secondary); }
+.badge {
+  font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em; padding: 0.15rem 0.45rem;
+  border-radius: 3px; text-transform: uppercase;
+  background: var(--moss-soft); color: var(--moss); flex-shrink: 0;
+}
+
+.body {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; flex: 1; padding: 3rem 2rem;
+  gap: 1rem;
+}
+
+.dropZone {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; max-width: 560px; min-height: 320px;
+  border: 2px dashed var(--hairline); border-radius: 16px;
+  background: var(--paper-card);
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
+}
+.dropZone:hover, .dzOver {
+  border-color: #dc2626;
+  background: rgba(220,38,38,0.03);
+  box-shadow: 0 0 0 4px rgba(220,38,38,0.07);
+}
+.fileInput { display: none; }
+
+.dzInner {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 0.6rem; padding: 2.5rem; text-align: center;
+  pointer-events: none;
+}
+.dzIcon { color: var(--ink-faint); margin-bottom: 0.5rem; }
+.dzPrimary { font-family: var(--font-ui); font-size: 1.1rem; font-weight: 700; color: var(--ink); margin: 0; }
+.dzSub { font-family: var(--font-ui); font-size: 0.875rem; color: var(--ink-secondary); margin: 0; }
+.dzHint {
+  font-family: var(--font-ui); font-size: 0.78rem; color: var(--ink-faint);
+  margin: 0.5rem 0 0; max-width: 340px; line-height: 1.5;
+}
+.errMsg { font-size: 0.875rem; color: #dc2626; font-family: var(--font-ui); }

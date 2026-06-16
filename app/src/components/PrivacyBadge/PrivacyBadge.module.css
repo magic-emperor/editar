@@ -1,0 +1,90 @@
+.badge {
+  position:      fixed;
+  bottom:        1rem;
+  left:          50%;
+  transform:     translateX(-50%);
+  display:       inline-flex;
+  align-items:   center;
+  gap:           0.45rem;
+  padding:       0.35rem 0.8rem 0.35rem 0.6rem;
+  background:    var(--moss-soft);
+  border:        1px solid rgba(74, 107, 67, 0.25);
+  border-radius: 999px;
+  font-size:     0.78rem;
+  color:         var(--moss);
+  font-weight:   500;
+  cursor:        pointer;
+  z-index:       100;
+  transition:    box-shadow var(--t-fast) var(--ease);
+  user-select:   none;
+  white-space:   nowrap;
+}
+
+.badge:hover {
+  box-shadow: 0 2px 8px rgba(74, 107, 67, 0.2);
+}
+
+/* Dot with pulse animation */
+.dot {
+  width:            7px;
+  height:           7px;
+  border-radius:    50%;
+  background:       var(--moss);
+  flex-shrink:      0;
+  position:         relative;
+}
+
+.dot::after {
+  content:       '';
+  position:      absolute;
+  inset:         -3px;
+  border-radius: 50%;
+  border:        1.5px solid var(--moss);
+  opacity:       0;
+  animation:     dotPulse 2.8s ease-out infinite;
+}
+
+@keyframes dotPulse {
+  0%   { transform: scale(0.5); opacity: 0.6; }
+  60%  { transform: scale(1.8); opacity: 0; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+/* Tooltip */
+.tooltipWrap {
+  position: relative;
+  display:  inline-flex;
+}
+
+.tooltip {
+  position:      absolute;
+  bottom:        calc(100% + 10px);
+  left:          50%;
+  transform:     translateX(-50%);
+  width:         240px;
+  padding:       0.65rem 0.85rem;
+  background:    var(--ink);
+  color:         #f5f0e8;
+  border-radius: var(--radius-control);
+  font-size:     0.78rem;
+  line-height:   1.5;
+  pointer-events: none;
+  opacity:       0;
+  transition:    opacity var(--t-fast) var(--ease);
+  text-align:    left;
+}
+
+.tooltip::after {
+  content:       '';
+  position:      absolute;
+  top:           100%;
+  left:          50%;
+  transform:     translateX(-50%);
+  border:        5px solid transparent;
+  border-top-color: var(--ink);
+}
+
+.tooltipWrap:hover .tooltip,
+.badge:focus-visible .tooltip {
+  opacity: 1;
+}

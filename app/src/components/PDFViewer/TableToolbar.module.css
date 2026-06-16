@@ -1,0 +1,67 @@
+.bar {
+  display:        flex;
+  align-items:    center;
+  gap:            0.5rem;
+  padding:        0.4rem 0.75rem;
+  background:     var(--paper-card, #fff);
+  border-top:     1px solid var(--hairline);
+  border-bottom:  1px solid var(--hairline);
+  flex-wrap:      wrap;
+  flex-shrink:    0;
+}
+
+.selLabel {
+  font-size:   0.78rem;
+  color:       var(--ink-secondary);
+  font-weight: 600;
+  margin-right: 0.25rem;
+}
+
+.btn {
+  padding:       0.28rem 0.65rem;
+  border:        1px solid var(--hairline);
+  border-radius: var(--radius-control, 5px);
+  background:    var(--paper-bg, #faf6ef);
+  color:         var(--ink-secondary);
+  font-size:     0.78rem;
+  font-family:   var(--font-ui, sans-serif);
+  cursor:        pointer;
+  white-space:   nowrap;
+  transition:    background 0.1s, color 0.1s;
+}
+.btn:hover { background: var(--paper-sunken); color: var(--ink); }
+
+.separator {
+  width:      1px;
+  height:     18px;
+  background: var(--hairline);
+  flex-shrink: 0;
+}
+
+.deselBtn {
+  margin-left:   auto;
+  width:         24px;
+  height:        24px;
+  border:        none;
+  background:    none;
+  color:         var(--ink-faint);
+  font-size:     1.1rem;
+  cursor:        pointer;
+  border-radius: 50%;
+  display:       flex;
+  align-items:   center;
+  justify-content: center;
+  line-height:   1;
+}
+.deselBtn:hover { background: var(--paper-sunken); color: var(--ink); }
+
+.validPill,
+.warnPill {
+  padding:       2px 8px;
+  border-radius: 10px;
+  font-size:     0.72rem;
+  font-weight:   600;
+  white-space:   nowrap;
+}
+.validPill { background: #d4edda; color: #1a5c2a; border: 1px solid #a3d5ae; }
+.warnPill  { background: #fdf5e0; color: #7a5c10; border: 1px solid #d4a843; }

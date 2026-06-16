@@ -1,0 +1,60 @@
+/* Floating overlay at the top-right of the page area — never disturbs the top bar. */
+.bar {
+  position:      absolute;
+  top:           calc(44px + 0.5rem);   /* clear the 44px top bar */
+  right:         1.1rem;
+  z-index:       30;
+  display:       flex;
+  align-items:   center;
+  gap:           0.4rem;
+  width:         340px;
+  max-width:     calc(100% - 2.2rem);
+  padding:       0.4rem 0.5rem;
+  background:    var(--paper-card);
+  border:        1px solid var(--hairline);
+  border-radius: var(--radius-card, 10px);
+  box-shadow:    var(--shadow-pop, 0 4px 16px rgba(26,22,18,.16));
+}
+
+.input {
+  flex:          1;
+  min-width:     0;
+  padding:       0.35rem 0.5rem;
+  border:        1px solid var(--hairline);
+  border-radius: var(--radius-control);
+  background:    var(--paper-bg);
+  color:         var(--ink);
+  font-size:     0.875rem;
+  font-family:   var(--font-ui);
+}
+.input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.count {
+  font-size:  0.78rem;
+  color:      var(--ink-secondary);
+  min-width:  4.5rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.navBtn,
+.closeBtn {
+  width:         26px;
+  height:        26px;
+  border:        1px solid var(--hairline);
+  border-radius: var(--radius-control);
+  background:    var(--paper-bg);
+  color:         var(--ink);
+  font-size:     0.9rem;
+  line-height:   1;
+  cursor:        pointer;
+  display:       flex;
+  align-items:   center;
+  justify-content: center;
+  transition:    background var(--t-fast) var(--ease);
+}
+.navBtn:hover:not(:disabled),
+.closeBtn:hover { background: var(--paper-sunken); }
+.navBtn:disabled { opacity: 0.35; cursor: default; }
+.closeBtn { border-color: transparent; font-size: 1.1rem; }

@@ -1,0 +1,19 @@
+.layer {
+  position:       absolute;
+  inset:          0;
+  overflow:       hidden;
+  pointer-events: none;
+}
+
+.block {
+  position:    absolute;
+  background:  rgba(255, 252, 215, 0.94);
+  color:       #111;
+  line-height: 1.15;
+  padding:     0 2px;
+  box-sizing:  border-box;
+  overflow:    hidden;
+  white-space: nowrap;
+  font-family: system-ui, -apple-system, sans-serif;
+  border-radius: 2px;
+}

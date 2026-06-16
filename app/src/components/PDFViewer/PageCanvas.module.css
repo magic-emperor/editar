@@ -1,0 +1,23 @@
+.wrapper {
+  position:      relative;
+  flex-shrink:   0;
+  align-self:    center;
+  border-radius: 2px;
+  background:    var(--paper-card);
+  border:        1px solid var(--hairline);
+  box-shadow:    var(--shadow-rest);
+  overflow:      hidden;
+  /* fade-in on first render */
+  animation:     pageFadeIn 180ms var(--ease) both;
+}
+
+@keyframes pageFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.canvas {
+  display: block;
+  width:   100%;
+  height:  100%;
+}

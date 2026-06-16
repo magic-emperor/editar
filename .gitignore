@@ -1,0 +1,39 @@
+# ── Dependencies ──────────────────────────────────────────────────────────────
+node_modules/
+venv/
+__pycache__/
+*.pyc
+
+# ── Build output ─────────────────────────────────────────────────────────────
+dist/
+dist-ssr/
+*.tsbuildinfo
+
+# ── Secrets — never commit real env files, only .env.example ──────────────────
+.env
+.env.*
+!.env.example
+
+# ── Logs ────────────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+
+# ── OS / editor ─────────────────────────────────────────────────────────────
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+
+# ── Local-only artifacts (not needed in the shipped repo) ──────────────────────
+*.local
+
+# ── Legacy/unused prototype scaffolding (not part of the shipped product) ──────
+/phase0/
+/eng.traineddata
+server/tmptest/
+
+# Leftover from the old Node-based IntelliFont route (now commented out in main.py,
+# replaced by the in-browser wasm engine) — server/ no longer needs Node at all.
+server/package.json
+server/package-lock.json

@@ -1,0 +1,56 @@
+/* Self-hosted bundled fonts (DejaVu) used for edit redraw — declared here so the live
+   DOM preview renders in the same faces the worker embeds on export (WYSIWYG). */
+
+@font-face { font-family: 'edit-sans';  font-weight: 400; font-style: normal;
+  src: url('/fonts/edit/sans-regular.ttf') format('truetype'); font-display: swap; }
+@font-face { font-family: 'edit-sans';  font-weight: 700; font-style: normal;
+  src: url('/fonts/edit/sans-bold.ttf') format('truetype'); font-display: swap; }
+@font-face { font-family: 'edit-sans';  font-weight: 400; font-style: italic;
+  src: url('/fonts/edit/sans-italic.ttf') format('truetype'); font-display: swap; }
+@font-face { font-family: 'edit-sans';  font-weight: 700; font-style: italic;
+  src: url('/fonts/edit/sans-bolditalic.ttf') format('truetype'); font-display: swap; }
+
+@font-face { font-family: 'edit-serif'; font-weight: 400; font-style: normal;
+  src: url('/fonts/edit/serif-regular.ttf') format('truetype'); font-display: swap; }
+@font-face { font-family: 'edit-serif'; font-weight: 700; font-style: normal;
+  src: url('/fonts/edit/serif-bold.ttf') format('truetype'); font-display: swap; }
+@font-face { font-family: 'edit-serif'; font-weight: 400; font-style: italic;
+  src: url('/fonts/edit/serif-italic.ttf') format('truetype'); font-display: swap; }
+@font-face { font-family: 'edit-serif'; font-weight: 700; font-style: italic;
+  src: url('/fonts/edit/serif-bolditalic.ttf') format('truetype'); font-display: swap; }
+
+@font-face { font-family: 'edit-mono';  font-weight: 400; font-style: normal;
+  src: url('/fonts/edit/mono-regular.ttf') format('truetype'); font-display: swap; }
+@font-face { font-family: 'edit-mono';  font-weight: 700; font-style: normal;
+  src: url('/fonts/edit/mono-bold.ttf') format('truetype'); font-display: swap; }
+@font-face { font-family: 'edit-mono';  font-weight: 400; font-style: italic;
+  src: url('/fonts/edit/mono-italic.ttf') format('truetype'); font-display: swap; }
+@font-face { font-family: 'edit-mono';  font-weight: 700; font-style: italic;
+  src: url('/fonts/edit/mono-bolditalic.ttf') format('truetype'); font-display: swap; }
+
+@font-face { font-family: 'edit-roboto'; font-weight: 400; font-style: normal;
+  src: url('/fonts/edit/roboto-regular.ttf') format('truetype'); font-display: swap; }
+@font-face { font-family: 'edit-roboto'; font-weight: 700; font-style: normal;
+  src: url('/fonts/edit/roboto-bold.ttf') format('truetype'); font-display: swap; }
+@font-face { font-family: 'edit-roboto'; font-weight: 400; font-style: italic;
+  src: url('/fonts/edit/roboto-italic.ttf') format('truetype'); font-display: swap; }
+@font-face { font-family: 'edit-roboto'; font-weight: 700; font-style: italic;
+  src: url('/fonts/edit/roboto-bolditalic.ttf') format('truetype'); font-display: swap; }
+
+@font-face { font-family: 'edit-ptserif'; font-weight: 400; font-style: normal;
+  src: url('/fonts/edit/ptserif-regular.ttf') format('truetype'); font-display: swap; }
+@font-face { font-family: 'edit-ptserif'; font-weight: 700; font-style: normal;
+  src: url('/fonts/edit/ptserif-bold.ttf') format('truetype'); font-display: swap; }
+@font-face { font-family: 'edit-ptserif'; font-weight: 400; font-style: italic;
+  src: url('/fonts/edit/ptserif-italic.ttf') format('truetype'); font-display: swap; }
+@font-face { font-family: 'edit-ptserif'; font-weight: 700; font-style: italic;
+  src: url('/fonts/edit/ptserif-bolditalic.ttf') format('truetype'); font-display: swap; }
+
+@font-face { font-family: 'edit-robotomono'; font-weight: 400; font-style: normal;
+  src: url('/fonts/edit/robotomono-regular.ttf') format('truetype'); font-display: swap; }
+@font-face { font-family: 'edit-robotomono'; font-weight: 700; font-style: normal;
+  src: url('/fonts/edit/robotomono-bold.ttf') format('truetype'); font-display: swap; }
+@font-face { font-family: 'edit-robotomono'; font-weight: 400; font-style: italic;
+  src: url('/fonts/edit/robotomono-italic.ttf') format('truetype'); font-display: swap; }
+@font-face { font-family: 'edit-robotomono'; font-weight: 700; font-style: italic;
+  src: url('/fonts/edit/robotomono-bolditalic.ttf') format('truetype'); font-display: swap; }

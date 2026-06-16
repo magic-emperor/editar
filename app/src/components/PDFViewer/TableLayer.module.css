@@ -1,0 +1,127 @@
+/* ── Table overlay ───────────────────────────────────────────────────────────── */
+
+.overlay {
+  position:       absolute;
+  inset:          0;
+  pointer-events: none;   /* pass-through by default; rows override */
+  overflow:       visible; /* allow select buttons to float above the table border */
+  z-index:        20;
+}
+
+/* Individual detected table — absolutely positioned over the page */
+.table {
+  position:   absolute;
+  border:     2px solid var(--accent, #b24530);
+  background: rgba(178, 69, 48, 0.03);
+  box-shadow: 0 0 0 1px rgba(178, 69, 48, 0.15);
+}
+
+/* ── Row bands ──────────────────────────────────────────────────────────────── */
+
+.row {
+  position:       absolute;
+  pointer-events: auto;
+  cursor:         pointer;
+  transition:     background 0.1s;
+  box-sizing:     border-box;
+}
+
+.rowEven { background: transparent; }
+.rowOdd  { background: rgba(178, 69, 48, 0.04); }
+
+.row:hover { background: rgba(178, 69, 48, 0.09); }
+
+.rowSelected {
+  background:     rgba(178, 69, 48, 0.16) !important;
+  outline:        1px solid rgba(178, 69, 48, 0.5);
+  outline-offset: -1px;
+}
+
+/* ── Column separators ───────────────────────────────────────────────────────── */
+
+.colSeparator {
+  position:   absolute;
+  top:        0;
+  bottom:     0;
+  width:      1px;
+  background: rgba(178, 69, 48, 0.3);
+  pointer-events: none;
+}
+
+/* ── Select-table button ─────────────────────────────────────────────────────── */
+
+.selectBtn,
+.selectBtnActive {
+  position:      absolute;
+  top:           -26px;   /* float above the table border */
+  left:          -2px;    /* align with table's 2px border */
+  padding:       2px 9px;
+  font-size:     11px;
+  font-family:   var(--font-ui, sans-serif);
+  font-weight:   700;
+  border:        2px solid var(--accent, #b24530);
+  cursor:        pointer;
+  pointer-events: auto;
+  z-index:       3;
+  white-space:   nowrap;
+  line-height:   1.6;
+  border-radius: 4px 4px 0 0;  /* rounded top, flat bottom merges into table border */
+  letter-spacing: 0.01em;
+}
+
+.selectBtn {
+  background: #fff;
+  color:      var(--accent, #b24530);
+  transition: background 0.12s, color 0.12s;
+}
+.selectBtn:hover {
+  background: rgba(178, 69, 48, 0.08);
+}
+
+.selectBtnActive {
+  background: var(--accent, #b24530);
+  color:      #fff;
+  border-color: var(--accent, #b24530);
+}
+
+/* ── Validation badge ────────────────────────────────────────────────────────── */
+
+.validBadge,
+.warnBadge {
+  position:      absolute;
+  top:           -20px;
+  right:         0;
+  padding:       1px 6px;
+  border-radius: 10px;
+  font-size:     10px;
+  font-family:   var(--font-ui, sans-serif);
+  font-weight:   600;
+  white-space:   nowrap;
+  pointer-events: none;
+  line-height:   1.6;
+}
+
+.validBadge {
+  background: #d4edda;
+  color:      #1a5c2a;
+  border:     1px solid #a3d5ae;
+}
+
+.warnBadge {
+  background: #fdf5e0;
+  color:      #7a5c10;
+  border:     1px solid #d4a843;
+}
+
+/* ── Low-confidence OCR dot ──────────────────────────────────────────────────── */
+
+.confDot {
+  position:      absolute;
+  top:           2px;
+  width:         5px;
+  height:        5px;
+  border-radius: 50%;
+  background:    #d4a843;
+  pointer-events: none;
+  transform:     translateX(-50%);
+}

@@ -1,0 +1,393 @@
+/* ── Shared panel shell ──────────────────────────────────────────────────────── */
+
+.panel {
+  background:   #fff;
+  border-top:   1px solid #e0d6d0;
+  padding:      10px 14px 14px;
+  font-family:  var(--font-ui, sans-serif);
+  font-size:    13px;
+}
+
+.panelHeader {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  margin-bottom:   8px;
+}
+
+.panelTitle {
+  font-weight: 700;
+  color:        var(--accent, #b24530);
+  font-size:    13px;
+  letter-spacing: 0.02em;
+}
+
+.closeBtn {
+  background:  none;
+  border:      none;
+  cursor:      pointer;
+  font-size:   14px;
+  color:       #888;
+  padding:     2px 4px;
+  line-height: 1;
+}
+.closeBtn:hover { color: #333; }
+
+/* ── Tabs ────────────────────────────────────────────────────────────────────── */
+
+.tabs {
+  display:       flex;
+  gap:           4px;
+  margin-bottom: 10px;
+}
+
+.tab,
+.tabActive {
+  padding:       4px 10px;
+  border:        1px solid transparent;
+  border-radius: 4px;
+  font-size:     12px;
+  cursor:        pointer;
+  font-family:   inherit;
+  font-weight:   500;
+}
+
+.tab {
+  background: #f5f0ed;
+  color:      #555;
+  border-color: #ddd;
+}
+.tab:hover { background: #ece5e0; }
+
+.tabActive {
+  background: var(--accent, #b24530);
+  color:      #fff;
+  border-color: var(--accent, #b24530);
+}
+
+.tabContent { min-height: 40px; }
+
+/* ── Modal (consent) ─────────────────────────────────────────────────────────── */
+
+.modalBackdrop {
+  position:        fixed;
+  inset:           0;
+  background:      rgba(0, 0, 0, 0.4);
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  z-index:         200;
+}
+
+.modal {
+  background:    #fff;
+  border-radius: 8px;
+  padding:       24px 28px;
+  max-width:     440px;
+  width:         90%;
+  box-shadow:    0 8px 32px rgba(0,0,0,0.18);
+  font-family:   var(--font-ui, sans-serif);
+}
+
+.modalTitle {
+  margin:      0 0 12px;
+  font-size:   16px;
+  font-weight: 700;
+  color:       #222;
+}
+
+.modalBody {
+  margin:      0 0 14px;
+  font-size:   13px;
+  line-height: 1.55;
+  color:       #444;
+}
+
+.consentRow {
+  display:     flex;
+  align-items: flex-start;
+  gap:         8px;
+  font-size:   13px;
+  color:       #333;
+  cursor:      pointer;
+  margin-bottom: 16px;
+}
+.consentRow input { margin-top: 2px; cursor: pointer; }
+
+.modalActions {
+  display:     flex;
+  gap:         8px;
+  justify-content: flex-end;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────────── */
+
+.btnPrimary,
+.btnSecondary,
+.btnDanger {
+  padding:       5px 14px;
+  border-radius: 4px;
+  font-size:     12px;
+  font-family:   inherit;
+  font-weight:   600;
+  cursor:        pointer;
+  border:        1px solid transparent;
+}
+
+.btnPrimary {
+  background:   var(--accent, #b24530);
+  color:        #fff;
+  border-color: var(--accent, #b24530);
+}
+.btnPrimary:hover:not(:disabled) { filter: brightness(1.1); }
+.btnPrimary:disabled { opacity: 0.5; cursor: default; }
+
+.btnSecondary {
+  background:   #f5f0ed;
+  color:        #444;
+  border-color: #ddd;
+}
+.btnSecondary:hover { background: #ece5e0; }
+
+.btnDanger {
+  background:   #fdf0ef;
+  color:        #b24530;
+  border-color: #f5c5bc;
+}
+.btnDanger:hover { background: #f9dcd9; }
+
+/* ── Settings panel ──────────────────────────────────────────────────────────── */
+
+.settingsPanel {
+  background:    #fff;
+  border:        1px solid #ddd;
+  border-radius: 6px;
+  padding:       14px 16px;
+  font-family:   var(--font-ui, sans-serif);
+  font-size:     13px;
+}
+
+.settingsHeader {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  margin-bottom:   8px;
+}
+
+.settingsTitle {
+  font-weight: 600;
+  color:       #222;
+}
+
+.settingsNote {
+  margin:      0 0 10px;
+  font-size:   12px;
+  color:       #666;
+  line-height: 1.5;
+}
+
+.keyInput {
+  width:        100%;
+  box-sizing:   border-box;
+  padding:      6px 10px;
+  border:       1px solid #ccc;
+  border-radius: 4px;
+  font-size:    13px;
+  font-family:  monospace;
+  margin-bottom: 10px;
+}
+.keyInput:focus { outline: 2px solid var(--accent, #b24530); border-color: transparent; }
+
+/* ── OCR overlay ─────────────────────────────────────────────────────────────── */
+
+.ocrOverlay {
+  position:       absolute;
+  inset:          0;
+  pointer-events: none;
+  overflow:       visible;
+  z-index:        25;
+}
+
+.ocrUnderline {
+  pointer-events: auto;
+  cursor:         pointer;
+  text-decoration: underline wavy #d4a843;
+  text-decoration-skip-ink: none;
+  color:          transparent;
+  user-select:    none;
+}
+
+.ocrCorrected {
+  pointer-events:  auto;
+  cursor:          pointer;
+  color:           var(--accent, #b24530);
+  font-weight:     600;
+  text-decoration: none;
+  user-select:     none;
+}
+
+.ocrPopover {
+  position:      absolute;
+  background:    #fff;
+  border:        1px solid #ddd;
+  border-radius: 6px;
+  padding:       8px 12px;
+  box-shadow:    0 4px 16px rgba(0,0,0,0.14);
+  display:       flex;
+  align-items:   center;
+  gap:           8px;
+  font-size:     12px;
+  font-family:   var(--font-ui, sans-serif);
+  z-index:       50;
+  pointer-events: auto;
+  white-space:   nowrap;
+}
+
+.ocrLoading { color: #888; }
+.ocrError   { color: #b24530; }
+.ocrSuggLabel { color: #666; }
+.ocrSuggWord  { color: #222; font-size: 13px; }
+
+.ocrAcceptBtn,
+.ocrIgnoreBtn {
+  padding:       3px 9px;
+  border-radius: 4px;
+  font-size:     11px;
+  font-family:   inherit;
+  font-weight:   600;
+  cursor:        pointer;
+  border:        1px solid transparent;
+}
+.ocrAcceptBtn {
+  background:   var(--accent, #b24530);
+  color:        #fff;
+  border-color: var(--accent, #b24530);
+}
+.ocrIgnoreBtn {
+  background:   #f5f0ed;
+  color:        #555;
+  border-color: #ddd;
+}
+
+.ocrHint {
+  font-size:   12px;
+  color:       #666;
+  line-height: 1.55;
+  margin:      0;
+}
+
+/* ── Table cleanup panel ─────────────────────────────────────────────────────── */
+
+.cleanupPanel {
+  display:        flex;
+  flex-direction: column;
+  gap:            6px;
+}
+
+.cleanupEmpty {
+  font-size: 12px;
+  color:     #666;
+  margin:    0;
+}
+
+.correctionList {
+  list-style: none;
+  margin:     0;
+  padding:    0;
+  display:    flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.correctionItem {
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+  font-size:   12px;
+  padding:     4px 6px;
+  background:  #fdf5e0;
+  border-radius: 4px;
+}
+
+.correctionCoord  { color: #888; white-space: nowrap; }
+.correctionArrow  { flex: 1; color: #333; }
+.correctionAccepted { color: #1a5c2a; font-weight: 600; }
+
+/* ── Smart extract panel ─────────────────────────────────────────────────────── */
+
+.extractPanel {
+  display:        flex;
+  flex-direction: column;
+  gap:            8px;
+}
+
+.extractActions {
+  display: flex;
+  gap:     6px;
+  flex-wrap: wrap;
+}
+
+.extractHint {
+  font-size:   12px;
+  color:       #666;
+  line-height: 1.55;
+  margin:      0;
+}
+
+.extractGroups {
+  display:        flex;
+  flex-direction: column;
+  gap:            10px;
+}
+
+.extractGroup { display: flex; flex-direction: column; gap: 4px; }
+
+.extractGroupTitle {
+  margin:      0;
+  font-size:   11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color:       #888;
+}
+
+.extractList {
+  list-style: none;
+  margin:     0;
+  padding:    0;
+  display:    flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.extractItem {
+  display:      flex;
+  align-items:  center;
+  gap:          8px;
+  font-size:    12px;
+  padding:      3px 6px;
+  background:   #f9f6f4;
+  border-radius: 3px;
+}
+.extractItem > span { flex: 1; }
+
+.copyBtn {
+  background:   transparent;
+  border:       1px solid #ddd;
+  border-radius: 3px;
+  font-size:    10px;
+  padding:      1px 6px;
+  cursor:       pointer;
+  color:        #666;
+  font-family:  inherit;
+}
+.copyBtn:hover { background: #ece5e0; }
+
+/* ── Shared error message ────────────────────────────────────────────────────── */
+
+.errorMsg {
+  color:       #b24530;
+  font-size:   12px;
+  margin:      0;
+  font-weight: 500;
+}

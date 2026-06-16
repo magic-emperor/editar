@@ -1,0 +1,18 @@
+/* Root fills the viewport — DropZone centers itself; ViewerLayout fills entirely */
+.appRoot {
+  min-height: 100vh;
+  position:   relative;
+}
+
+.appRoot.hasFile {
+  height:   100vh;
+  overflow: hidden;
+}
+
+/* Side-by-side: viewer (flex: 1) + toolbar (fixed width) */
+.viewerLayout {
+  display:   flex;
+  flex-direction: row;
+  height:    100vh;
+  overflow:  hidden;
+}
