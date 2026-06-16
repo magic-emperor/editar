@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://editar-eta.vercel.app/sitemap.xml
