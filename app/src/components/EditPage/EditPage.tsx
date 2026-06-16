@@ -1,21 +1,13 @@
-import { useState, useCallback } from 'react'
-import { openDocument, runOp, splitDocument } from '../../lib/pdfEngine'
+import { useState, useCallback, useEffect, useRef } from 'react'
+import { openDocument, closeDocument, runOp, splitDocument } from '../../lib/pdfEngine'
+import type { PageSize } from '../../lib/pdfEngine'
 import type { WatermarkPos } from '../../lib/pdfOps'
+import { dl, fmtSize, previewKind } from '../../lib/resultPreview'
+import { zipFiles } from '../../lib/zip'
+import { PagePreview } from './PagePreview'
 import styles from './EditPage.module.css'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function dl(bytes: Uint8Array, name: string) {
-  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'application/pdf' }))
-  const a = Object.assign(document.createElement('a'), { href: url, download: name })
-  a.click()
-  setTimeout(() => URL.revokeObjectURL(url), 100)
-}
-
-function fmtSize(bytes: number): string {
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB'
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
-}
 
 function parsePageRanges(input: string, count: number): number[] {
   const pages = new Set<number>()
@@ -29,6 +21,12 @@ function parsePageRanges(input: string, count: number): number[] {
     }
   }
   return Array.from(pages).sort((a, b) => a - b)
+}
+
+function parseSplitIndices(input: string, pageCount: number): number[] {
+  return input.trim()
+    ? input.split(',').map(s => parseInt(s.trim(), 10) - 1).filter(n => n >= 0 && n < pageCount - 1)
+    : []
 }
 
 // ── Op config ─────────────────────────────────────────────────────────────────
@@ -49,7 +47,10 @@ const OP_META: Record<OpId, { label: string; note: string; multi?: boolean }> = 
 
 // ── PdfInfo ───────────────────────────────────────────────────────────────────
 
-interface PdfInfo { name: string; bytes: Uint8Array; pageCount: number }
+interface PdfInfo { name: string; bytes: Uint8Array; pageCount: number; docId: string; pageSizes: PageSize[] }
+
+interface ResultFile { name: string; bytes: Uint8Array; mime: string }
+interface OpResult    { files: ResultFile[] }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -113,23 +114,49 @@ export function EditPage({ opId, onBack }: { opId: string; onBack: () => void })
   const [running, setRunning] = useState(false)
   const [logs,    setLogs]    = useState<string[]>([])
   const [runErr,  setRunErr]  = useState<string | null>(null)
-  const [done,    setDone]    = useState(false)
+  const [result,  setResult]  = useState<OpResult | null>(null)
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null)
+  const [previewUrl,   setPreviewUrl]   = useState<string | null>(null)
 
   const meta = op ?? { label: opId, note: '', multi: false }
   const isMulti = meta.multi ?? false
   const firstPdf = pdfs[0] ?? null
 
+  // Close every open document handle on unmount
+  const pdfsRef = useRef(pdfs)
+  pdfsRef.current = pdfs
+  useEffect(() => () => { pdfsRef.current.forEach(p => closeDocument(p.docId)) }, [])
+
+  // Build/revoke a Blob URL for the file currently being previewed (image/PDF kinds only)
+  useEffect(() => {
+    if (previewIndex === null || !result) { setPreviewUrl(null); return }
+    const f = result.files[previewIndex]
+    if (!f) { setPreviewUrl(null); return }
+    const kind = previewKind(f.mime)
+    if (kind !== 'image' && kind !== 'pdf') { setPreviewUrl(null); return }
+    const url = URL.createObjectURL(new Blob([f.bytes as BlobPart], { type: f.mime }))
+    setPreviewUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [previewIndex, result])
+
   // ── Load PDF(s) ───────────────────────────────────────────────────────────
 
   const loadPdfs = useCallback(async (files: File[]) => {
-    setLoading(true); setPdfError(null); setLogs([]); setRunErr(null); setDone(false)
+    setLoading(true); setPdfError(null); setLogs([]); setRunErr(null); setResult(null); setPreviewIndex(null)
     try {
       const infos: PdfInfo[] = await Promise.all(files.map(async f => {
         const bytes = new Uint8Array(await f.arrayBuffer())
-        const { pageCount } = await openDocument(bytes)
-        return { name: f.name, bytes, pageCount }
+        const { docId, pageCount, pageSizes } = await openDocument(bytes)
+        return { name: f.name, bytes, pageCount, docId, pageSizes }
       }))
-      setPdfs(isMulti ? prev => [...prev, ...infos] : [infos[0]])
+      if (isMulti) {
+        setPdfs(prev => [...prev, ...infos])
+      } else {
+        setPdfs(prev => {
+          prev.forEach(p => closeDocument(p.docId))
+          return [infos[0]]
+        })
+      }
     } catch {
       setPdfError('Could not open a PDF. It may be damaged or password-protected.')
     } finally {
@@ -137,7 +164,10 @@ export function EditPage({ opId, onBack }: { opId: string; onBack: () => void })
     }
   }, [isMulti])
 
-  const removePdf = (i: number) => setPdfs(p => p.filter((_, j) => j !== i))
+  const removePdf = (i: number) => setPdfs(p => {
+    closeDocument(p[i].docId)
+    return p.filter((_, j) => j !== i)
+  })
 
   // ── Run operation ─────────────────────────────────────────────────────────
 
@@ -147,7 +177,7 @@ export function EditPage({ opId, onBack }: { opId: string; onBack: () => void })
   const run = async () => {
     if (!firstPdf && opId !== 'merge') return
     if (opId === 'merge' && pdfs.length < 2) return
-    setRunning(true); setRunErr(null); setLogs([]); setDone(false)
+    setRunning(true); setRunErr(null); setLogs([]); setResult(null); setPreviewIndex(null)
     log(`Starting ${meta.label}…`)
     try {
       const stem = firstPdf?.name.replace(/\.pdf$/i, '') ?? 'merged'
@@ -156,31 +186,31 @@ export function EditPage({ opId, onBack }: { opId: string; onBack: () => void })
       if (opId === 'merge') {
         const merged = await runOp({ op: 'merge', files: pdfs.map(p => p.bytes) })
         log(`Done — ${fmtSize(merged.length)}`)
-        dl(merged, 'merged.pdf'); setDone(true)
+        setResult({ files: [{ name: 'merged.pdf', bytes: merged, mime: 'application/pdf' }] })
 
       } else if (opId === 'split') {
-        const indices = pageRange.trim()
-          ? pageRange.split(',').map(s => parseInt(s.trim(), 10) - 1).filter(n => n >= 0 && n < pc - 1)
-          : []
+        const indices = parseSplitIndices(pageRange, pc)
         if (!indices.length) { setRunErr('Enter at least one split point (e.g. "3" to split after page 3).'); return }
         log(`Splitting at indices: ${indices.join(', ')}`)
         const parts = await splitDocument(firstPdf!.bytes, indices)
-        parts.forEach((p, i) => dl(p, `${stem}-part${i + 1}.pdf`))
-        log(`Done — ${parts.length} file(s) downloaded`); setDone(true)
+        log(`Done — ${parts.length} file(s) ready`)
+        setResult({ files: parts.map((p, i) => ({ name: `${stem}-part${i + 1}.pdf`, bytes: p, mime: 'application/pdf' })) })
 
       } else if (opId === 'extract') {
         const pages = parsePageRanges(pageRange, pc)
         if (!pages.length) { setRunErr(`Enter a page range (e.g. "1-3, 5"). The PDF has ${pc} pages.`); return }
         log(`Extracting pages: ${pages.map(p => p + 1).join(', ')}`)
         const res = await runOp({ op: 'extract', file: firstPdf!.bytes, pages })
-        log(`Done — ${fmtSize(res.length)}`); dl(res, `${stem}-extracted.pdf`); setDone(true)
+        log(`Done — ${fmtSize(res.length)}`)
+        setResult({ files: [{ name: `${stem}-extracted.pdf`, bytes: res, mime: 'application/pdf' }] })
 
       } else if (opId === 'remove') {
         const pages = parsePageRanges(pageRange, pc)
         if (!pages.length) { setRunErr(`Enter pages to remove (e.g. "2, 4-6"). The PDF has ${pc} pages.`); return }
         log(`Removing pages: ${pages.map(p => p + 1).join(', ')}`)
         const res = await runOp({ op: 'remove', file: firstPdf!.bytes, pages })
-        log(`Done — ${fmtSize(res.length)}`); dl(res, `${stem}-removed.pdf`); setDone(true)
+        log(`Done — ${fmtSize(res.length)}`)
+        setResult({ files: [{ name: `${stem}-removed.pdf`, bytes: res, mime: 'application/pdf' }] })
 
       } else if (opId === 'reorder') {
         const order = newOrder.split(',').map(s => parseInt(s.trim(), 10) - 1)
@@ -189,7 +219,8 @@ export function EditPage({ opId, onBack }: { opId: string; onBack: () => void })
         }
         log(`Reordering to: ${order.map(n => n + 1).join(', ')}`)
         const res = await runOp({ op: 'reorder', file: firstPdf!.bytes, newOrder: order })
-        log(`Done — ${fmtSize(res.length)}`); dl(res, `${stem}-reordered.pdf`); setDone(true)
+        log(`Done — ${fmtSize(res.length)}`)
+        setResult({ files: [{ name: `${stem}-reordered.pdf`, bytes: res, mime: 'application/pdf' }] })
 
       } else if (opId === 'rotate') {
         let bytes = firstPdf!.bytes
@@ -201,25 +232,28 @@ export function EditPage({ opId, onBack }: { opId: string; onBack: () => void })
         for (const idx of pagesToRotate) {
           bytes = await runOp({ op: 'rotate', file: bytes, pageIndex: idx, rotateDegrees: rotateAngle })
         }
-        log(`Done — ${fmtSize(bytes.length)}`); dl(bytes, `${stem}-rotated.pdf`); setDone(true)
+        log(`Done — ${fmtSize(bytes.length)}`)
+        setResult({ files: [{ name: `${stem}-rotated.pdf`, bytes, mime: 'application/pdf' }] })
 
       } else if (opId === 'compress') {
         log('Compressing…')
         const res = await runOp({ op: 'compress', file: firstPdf!.bytes })
         const saved = firstPdf!.bytes.length - res.length
         log(`Done — saved ${fmtSize(Math.max(0, saved))} (${fmtSize(res.length)})`)
-        dl(res, `${stem}-compressed.pdf`); setDone(true)
+        setResult({ files: [{ name: `${stem}-compressed.pdf`, bytes: res, mime: 'application/pdf' }] })
 
       } else if (opId === 'watermark') {
         if (!wmText.trim()) { setRunErr('Enter watermark text.'); return }
         log(`Adding watermark "${wmText}" at ${wmPos}, opacity ${wmOpacity}`)
         const res = await runOp({ op: 'watermark', file: firstPdf!.bytes, text: wmText, opacity: wmOpacity, position: wmPos })
-        log(`Done — ${fmtSize(res.length)}`); dl(res, `${stem}-watermarked.pdf`); setDone(true)
+        log(`Done — ${fmtSize(res.length)}`)
+        setResult({ files: [{ name: `${stem}-watermarked.pdf`, bytes: res, mime: 'application/pdf' }] })
 
       } else if (opId === 'pageNumbers') {
         log(`Adding page numbers starting at ${pnStart}, position: ${pnPos}`)
         const res = await runOp({ op: 'pageNumbers', file: firstPdf!.bytes, startAt: pnStart, position: pnPos })
-        log(`Done — ${fmtSize(res.length)}`); dl(res, `${stem}-numbered.pdf`); setDone(true)
+        log(`Done — ${fmtSize(res.length)}`)
+        setResult({ files: [{ name: `${stem}-numbered.pdf`, bytes: res, mime: 'application/pdf' }] })
       }
     } catch (e) {
       const msg = String(e).replace(/^Error:\s*/, '')
@@ -229,7 +263,39 @@ export function EditPage({ opId, onBack }: { opId: string; onBack: () => void })
     }
   }
 
+  const undo = () => { setResult(null); setLogs([]); setRunErr(null); setPreviewIndex(null) }
+
+  const downloadAll = () => {
+    if (!result) return
+    if (result.files.length === 1) { const f = result.files[0]; dl(f.bytes, f.name, f.mime); return }
+    const zip = zipFiles(result.files)
+    dl(zip, `${firstPdf?.name.replace(/\.pdf$/i, '') ?? 'files'}-split.zip`, 'application/zip')
+  }
+
   const canRun = !running && (opId === 'merge' ? pdfs.length >= 2 : !!firstPdf)
+
+  // ── Page-grid badge derivation (live, from current option state) ──────────
+
+  const pc = firstPdf?.pageCount ?? 0
+  let gridBadge: ((i: number) => { kind: 'remove' | 'extract' | 'rotate'; label?: string } | null) | undefined
+  let splitAfterSet: Set<number> | undefined
+
+  if (opId === 'split') {
+    splitAfterSet = new Set(parseSplitIndices(pageRange, pc))
+  } else if (opId === 'extract') {
+    const pages = new Set(parsePageRanges(pageRange, pc))
+    gridBadge = i => pages.has(i) ? { kind: 'extract' } : null
+  } else if (opId === 'remove') {
+    const pages = new Set(parsePageRanges(pageRange, pc))
+    gridBadge = i => pages.has(i) ? { kind: 'remove' } : null
+  } else if (opId === 'rotate') {
+    const pages = rotatePages === 'all'
+      ? new Set(Array.from({ length: pc }, (_, i) => i))
+      : new Set(parsePageRanges(rotatePages, pc))
+    gridBadge = i => pages.has(i) ? { kind: 'rotate', label: `${rotateAngle}°` } : null
+  }
+
+  const showPagePreview = !isMulti && !!firstPdf
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -246,7 +312,7 @@ export function EditPage({ opId, onBack }: { opId: string; onBack: () => void })
 
       <div className={styles.body}>
         {/* ── Upload column ── */}
-        <section className={styles.col}>
+        <section className={`${styles.col} ${styles.colWide}`}>
           <h2 className={styles.secLabel}>{isMulti ? 'Upload PDFs' : 'Upload PDF'}</h2>
 
           {pdfs.length === 0 ? (
@@ -290,10 +356,19 @@ export function EditPage({ opId, onBack }: { opId: string; onBack: () => void })
           {loading && <p className={styles.hint}>Opening PDF…</p>}
           {pdfError && <p className={styles.errMsg}>{pdfError}</p>}
           {firstPdf && <p className={styles.hint}>{firstPdf.pageCount} page{firstPdf.pageCount !== 1 ? 's' : ''} detected</p>}
+
+          {showPagePreview && (
+            <PagePreview
+              docId={firstPdf!.docId}
+              pageSizes={firstPdf!.pageSizes}
+              badge={gridBadge}
+              splitAfter={splitAfterSet}
+            />
+          )}
         </section>
 
         {/* ── Options + run column ── */}
-        <section className={styles.col}>
+        <section className={`${styles.col} ${styles.colNarrow}`}>
           {/* ── Operation-specific options ── */}
           {(opId === 'split') && (
             <div className={styles.optBox}>
@@ -441,9 +516,57 @@ export function EditPage({ opId, onBack }: { opId: string; onBack: () => void })
 
           {runErr && <p className={styles.errMsg}>{runErr}</p>}
 
-          {done && (
-            <div className={styles.doneBox}>
-              ✓ {meta.label} complete — file downloaded automatically
+          {/* ── Result / preview / download ── */}
+          {result && (
+            <div className={styles.resultBox}>
+              <p className={styles.resultTitle}>
+                {result.files.length === 1 ? `${meta.label} complete` : `${result.files.length} files ready`}
+              </p>
+              <div className={styles.resultFiles}>
+                {result.files.map((f, i) => {
+                  const kind = previewKind(f.mime)
+                  const open = previewIndex === i
+                  return (
+                    <div key={i}>
+                      <div className={styles.resultFile}>
+                        <span className={styles.resultFileName}>{f.name}</span>
+                        <span className={styles.resultFileSize}>{fmtSize(f.bytes.length)}</span>
+                        {kind !== 'none' && (
+                          <button
+                            className={styles.previewBtn}
+                            onClick={() => setPreviewIndex(open ? null : i)}
+                          >{open ? '✕ Close' : '👁 Preview'}</button>
+                        )}
+                        <button className={styles.resultDl} onClick={() => dl(f.bytes, f.name, f.mime)}>↓ Download</button>
+                      </div>
+                      {open && (
+                        <div className={styles.previewPanel}>
+                          {kind === 'text' && (
+                            <pre className={styles.previewText}>{new TextDecoder().decode(f.bytes)}</pre>
+                          )}
+                          {kind === 'image' && previewUrl && (
+                            <img className={styles.previewImg} src={previewUrl} alt={f.name} />
+                          )}
+                          {kind === 'pdf' && previewUrl && (
+                            <iframe className={styles.previewFrame} src={previewUrl} title={f.name} />
+                          )}
+                          {kind === 'none' && (
+                            <p className={styles.previewNone}>Preview not available for this file type — download to view.</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+              <div className={styles.resultActions}>
+                {result.files.length > 1 && (
+                  <button className={styles.downloadAllBtn} onClick={downloadAll}>
+                    ↓ Download all as ZIP
+                  </button>
+                )}
+                <button className={styles.undoBtn} onClick={undo}>↺ Undo / try again</button>
+              </div>
             </div>
           )}
         </section>
