@@ -12,32 +12,12 @@ import {
 import { setOcrLanguage, getOcrLanguage } from '../../lib/ocr'
 import { OCR_LANGUAGES } from '../../lib/constants'
 import { clearTextLayerCache } from '../../lib/textLayer'
+import { dl, fmtSize, previewKind } from '../../lib/resultPreview'
 import styles from './ToolPage.module.css'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const DEFAULT_SERVER = import.meta.env.VITE_API_URL ?? 'http://localhost:5050'
-
-function dl(bytes: Uint8Array, name: string, mime: string) {
-  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: mime }))
-  const a = Object.assign(document.createElement('a'), { href: url, download: name })
-  a.click()
-  setTimeout(() => URL.revokeObjectURL(url), 100)
-}
-
-function fmtSize(bytes: number): string {
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB'
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
-}
-
-type PreviewKind = 'text' | 'image' | 'pdf' | 'none'
-
-function previewKind(mime: string): PreviewKind {
-  if (mime === 'text/plain' || mime === 'text/markdown' || mime === 'text/csv' || mime === 'application/json') return 'text'
-  if (mime.startsWith('image/')) return 'image'
-  if (mime === 'application/pdf') return 'pdf'
-  return 'none'
-}
 
 const DPI_OPTIONS  = [
   { label: '150 DPI', value: 150 },
