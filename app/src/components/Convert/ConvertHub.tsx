@@ -502,7 +502,7 @@ export function ConvertHub({ onClose, initialConverterId }: {
       <div className={styles.topBar}>
         <button className={styles.backBtn} onClick={onClose}>← Back</button>
         <div className={styles.topBarBrand}>
-          <span className={styles.topBarLogo}>L</span>
+          <img className={styles.topBarLogo} src="/EDITAR.png" alt="" aria-hidden />
           <div>
             <span className={styles.pageTitle}>Format Converter</span>
             <span className={styles.pageSubtitle}>On-device · Nothing leaves your machine</span>

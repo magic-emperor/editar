@@ -75,8 +75,10 @@ def _check_rate_limit(request: Request) -> None:
 
 # LibreOffice/pdf2docx are not safely concurrent (~150-300MB RAM each, can
 # deadlock/corrupt output when run in parallel) — serialize heavy conversions
-# instead of letting requests pile up unboundedly.
-_CONVERSION_SEMAPHORE = asyncio.Semaphore(2)
+# instead of letting requests pile up unboundedly. Default of 2 assumes a host
+# with headroom; on a 512MB instance (e.g. Render free tier) set
+# MAX_CONCURRENT_CONVERSIONS=1 to avoid OOM kills under concurrent load.
+_CONVERSION_SEMAPHORE = asyncio.Semaphore(int(os.environ.get("MAX_CONCURRENT_CONVERSIONS", "2")))
 
 
 async def _acquire_conversion_slot() -> None:
