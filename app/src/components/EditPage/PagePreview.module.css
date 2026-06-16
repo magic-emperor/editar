@@ -9,9 +9,10 @@
 }
 
 .canvasWrap {
-  position: relative;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
   min-height: 420px;
   max-height: 70vh;
   background: var(--paper-card);
@@ -19,6 +20,22 @@
   border-radius: 6px;
   overflow: auto;
   padding: 0.75rem;
+  scroll-behavior: smooth;
+}
+
+.pageSlot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+}
+
+.canvasBox {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  width: 100%;
 }
 
 .canvas {
