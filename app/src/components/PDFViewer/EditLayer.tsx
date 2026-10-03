@@ -127,16 +127,31 @@ export function EditLayer({ docId, bytes, pageIndex, zoom, ptToPx, active }: Pro
     })
   }, [active, layer, scale, tool])
 
-  // Shrink placed-preview text to its box width (matches the export's shrink-to-fit; no overlap).
+  // Shrink placed-preview text to its box width (true-edit A4) — same rule as the export's
+  // shrink-to-fit in pdfOps.ts: size' = size * min(1, boxW / naturalW). A uniform font-size
+  // shrink (not a scaleX squish) so the preview matches what gets drawn on Apply.
+  // DISABLED (true-edit A4): scaleX squished glyphs horizontally and didn't match the
+  // export, which shrinks the font size instead.
+  // el.style.transform = ''
+  // const natural = el.scrollWidth
+  // const target  = e.bbox.w * scale
+  // if (natural > target && natural > 0) el.style.transform = `scaleX(${target / natural})`
   useLayoutEffect(() => {
     for (const e of edits) {
       if (e.page !== pageIndex || e.kind === 'redact') continue
       const el = placedRefs.current.get(e.id)
       if (!el) continue
-      el.style.transform = ''
+      // Reset to the full declared size before measuring — unlike `transform` (never set
+      // via the style prop), React sets `fontSize` on every render, so '' would fall back
+      // to the inherited default instead of the natural width at the full size.
+      const fullSizePx = e.style.size * scale
+      el.style.fontSize = `${fullSizePx}px`
       const natural = el.scrollWidth
       const target  = e.bbox.w * scale
-      if (natural > target && natural > 0) el.style.transform = `scaleX(${target / natural})`
+      if (natural > 0 && target > 0) {
+        const shrink = Math.min(1, target / natural)
+        if (shrink < 1) el.style.fontSize = `${fullSizePx * shrink}px`
+      }
     }
   }, [edits, scale, pageIndex])
 
