@@ -1,9 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import fontkit from '@pdf-lib/fontkit'
 import { useEditStore } from '../../lib/editStore'
 import { loadPageTextLayer, getCachedTextLayer } from '../../lib/textLayer'
 import { getEmbeddedFontBytes, preloadPageFonts } from '../../lib/textExtract'
 import { classifyFamily } from '../../lib/fontClassify'
-import { identifyFont } from '../../lib/intellifont'
+// DISABLED (true-edit A6): IntelliFont's visual matcher (identify_from_buffer) returns
+// wrong families for every Latin font tested — see phase0/PHASE0_REPORT.md §5
+// ("Architecture constraint #2"). classifyFamily from the embedded font's own name table
+// (below) is the documented workaround and needs no visual matching or wasm call.
+// import { identifyFont } from '../../lib/intellifont'
 import type { EditOp, EditRect, EditStyle, PageTextLayer, RGB, TextItem } from '../../lib/types'
 import { EditControls } from './EditControls'
 import styles from './EditLayer.module.css'
@@ -102,6 +107,23 @@ function sampleColors(
   const color: RGB = ink.count > 0 ? ink.medianRgb01() : [0, 0, 0]
 
   return { bg, color }
+}
+
+// Real family name from the embedded font's own OpenType name table (true-edit A6),
+// used instead of IntelliFont's visual matcher — see the DISABLED import note above.
+// pdf.js font refs are sometimes garbled (e.g. "g_d0_f1"); the font's own binary always
+// carries its real name (postscriptName / familyName), which classifyFamily can read
+// just as well as a clean name. Cached per fontName (parsing is not free).
+const nameTableCache = new Map<string, string | null>()
+function realFontName(fontName: string, bytes: Uint8Array): string | null {
+  if (nameTableCache.has(fontName)) return nameTableCache.get(fontName)!
+  let name: string | null = null
+  try {
+    const font = fontkit.create(bytes)
+    name = font.postscriptName || font.familyName || null
+  } catch { /* not a font fontkit can parse — fall through to null */ }
+  nameTableCache.set(fontName, name)
+  return name
 }
 
 // Preview FontFaces registered from the document's own font bytes, so the live editor
@@ -295,9 +317,10 @@ export function EditLayer({ docId, bytes, pageIndex, zoom, ptToPx, active }: Pro
     if (embedded && item.fontName) {
       style.embeddedFont = embedded
       registerPreviewFont(item.fontName, embedded)
-      // Upgrade font family classification with IntelliFont (decodes garbled font names)
-      const match = await identifyFont(item.fontName, embedded)
-      if (match) style.family = classifyFamily(match.family).family
+      // Upgrade family classification from the font's own name table (true-edit A6) —
+      // fixes garbled pdf.js refs like "g_d0_f1" without IntelliFont's visual matcher.
+      const realName = realFontName(item.fontName, embedded)
+      if (realName) style.family = classifyFamily(realName).family
     }
     // Real text/background colour (true-edit A5), sampled from the rendered page canvas
     // instead of hard-coded black text on a white cover. Falls back to black-on-white if
