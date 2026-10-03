@@ -51,6 +51,7 @@ interface Editing {
   value: string
   style: EditStyle
   sourceId?: string
+  baselineY?: number  // true-edit A3: real baseline from the source TextItem, top-origin points
 }
 
 function caretFromPoint(x: number, y: number): { node: Node; offset: number } | null {
@@ -186,14 +187,17 @@ export function EditLayer({ docId, bytes, pageIndex, zoom, ptToPx, active }: Pro
     range.setStart(node, ws); range.setEnd(node, we)
     const rect = range.getBoundingClientRect()
     const base = rootRef.current!.getBoundingClientRect()
-    const bbox: EditRect = {
-      x: (rect.left - base.left) / scale,
-      y: (rect.top - base.top) / scale,
-      w: rect.width / scale,
-      h: rect.height / scale,
-    }
     const word = item.str.slice(ws, we)
     const style = styleFromItem(item)
+    // Real baseline + cover box (true-edit A3): y/h from the item's own baseline and font
+    // size (ascent 0.95*size above, descent 0.25*size below), not the DOM span's box.
+    // x/w stay from the DOM range so they track the clicked word, not the whole run.
+    const bbox: EditRect = {
+      x: (rect.left - base.left) / scale,
+      y: item.baseline - style.size * 0.95,
+      w: rect.width / scale,
+      h: style.size * 1.2,
+    }
     // Reuse the document's own font so the edited word matches exactly.
     const embedded = await getEmbeddedFontBytes(docId, bytes, pageIndex, item.fontName)
     if (embedded && item.fontName) {
@@ -204,7 +208,7 @@ export function EditLayer({ docId, bytes, pageIndex, zoom, ptToPx, active }: Pro
       if (match) style.family = classifyFamily(match.family).family
     }
     opening.current = true
-    setEditing({ kind: 'replace', bbox, original: word, value: word, style })
+    setEditing({ kind: 'replace', bbox, original: word, value: word, style, baselineY: item.baseline })
   }
 
   const onRootMouseDown = (e: React.MouseEvent) => {
@@ -259,7 +263,7 @@ export function EditLayer({ docId, bytes, pageIndex, zoom, ptToPx, active }: Pro
     if (suppressClick.current) { suppressClick.current = false; return }
     if (ed.kind === 'redact') return
     opening.current = true
-    setEditing({ kind: ed.kind, bbox: { ...ed.bbox }, original: '', value: ed.newText, style: { ...ed.style }, sourceId: ed.id })
+    setEditing({ kind: ed.kind, bbox: { ...ed.bbox }, original: '', value: ed.newText, style: { ...ed.style }, sourceId: ed.id, baselineY: ed.baselineY })
   }
 
   const commit = () => {
@@ -267,12 +271,12 @@ export function EditLayer({ docId, bytes, pageIndex, zoom, ptToPx, active }: Pro
     const t = editing.value
     if (editing.sourceId) {
       if (t.trim() === '') removeEdit(editing.sourceId)
-      else updateEdit(editing.sourceId, { newText: t, bbox: editing.bbox, style: editing.style } as Partial<EditOp>)
+      else updateEdit(editing.sourceId, { newText: t, bbox: editing.bbox, style: editing.style, baselineY: editing.baselineY } as Partial<EditOp>)
     } else if (editing.kind === 'replace') {
       if (t.trim() !== '' && t !== editing.original)
-        addEdit({ id: uuid(), kind: 'replace', page: pageIndex, bbox: editing.bbox, newText: t, style: editing.style, bg: [1, 1, 1] })
+        addEdit({ id: uuid(), kind: 'replace', page: pageIndex, bbox: editing.bbox, newText: t, style: editing.style, bg: [1, 1, 1], baselineY: editing.baselineY })
     } else if (t.trim() !== '') {
-      addEdit({ id: uuid(), kind: 'add', page: pageIndex, bbox: editing.bbox, newText: t, style: editing.style })
+      addEdit({ id: uuid(), kind: 'add', page: pageIndex, bbox: editing.bbox, newText: t, style: editing.style, baselineY: editing.baselineY })
     }
     setEditing(null)
   }

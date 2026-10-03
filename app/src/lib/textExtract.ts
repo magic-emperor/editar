@@ -94,8 +94,10 @@ export async function extractNativeText(
     const w  = raw.width
     // Flip to top-left origin: top of glyph ≈ baseline − ascent ≈ (H − yBaseline) − h
     const y  = pageHeight - yBaseline - h
+    // True baseline in top-origin points (true-edit A3) — exact, not the 0.8*size guess.
+    const baseline = pageHeight - yBaseline
 
-    items.push({ str, x, y, w, h, fontName: raw.fontName, source: 'native' })
+    items.push({ str, x, y, w, h, baseline, fontName: raw.fontName, source: 'native' })
   }
 
   const source: PageTextLayer['source'] = charCount < EMPTY_TEXT_THRESHOLD ? 'empty' : 'native'

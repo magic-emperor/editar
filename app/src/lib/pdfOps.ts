@@ -247,8 +247,10 @@ async function editPage(file: Uint8Array, edits: EditOp[]): Promise<Uint8Array> 
       const tw = font.widthOfTextAtSize(e.newText, size)
       if (tw > w && tw > 0) size = size * (w / tw)
     }
-    // Baseline ~0.8 of the cap height below the box top (leaves room for descenders).
-    const baselineFromTop = y + size * 0.8
+    // true-edit A3: use the real baseline captured from the source TextItem when we have
+    // one (replace/add from a click); only guess 0.8*size below the box top when we don't
+    // (e.g. a brand-new 'add' with no source item).
+    const baselineFromTop = e.baselineY ?? (y + size * 0.8)
     page.drawText(e.newText, {
       x: x + size * 0.04,
       y: ph - baselineFromTop,
