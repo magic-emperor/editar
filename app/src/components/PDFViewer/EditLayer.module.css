@@ -3,6 +3,10 @@
   inset:    0;
   z-index:  2;            /* above canvas + text layer */
   overflow: hidden;
+  /* true-edit A7: dragging a placed box shouldn't select the hidden hit-span text
+     underneath it. Doesn't affect the textarea editor — form controls stay selectable
+     regardless of an ancestor's user-select. */
+  user-select: none;
 }
 .layer.text     { cursor: text; }
 .layer.whiteout { cursor: crosshair; }
