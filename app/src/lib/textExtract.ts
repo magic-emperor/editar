@@ -50,10 +50,14 @@ async function getDoc(docId: string, bytes: Uint8Array): Promise<PDFDocumentProx
   // .slice() — pdf.js may transfer/detach the buffer; never touch fileStore's copy.
   // standardFontDataUrl: self-hosted standard-14 font metrics so pdf.js computes
   // accurate glyph widths for non-embedded fonts (keeps selection/highlight aligned).
+  // fontExtraProperties: true (true-edit A2) — pdf.js 6.0.227 calls font.clearData()
+  // before resolving the font unless this is set, so commonObjs.get(fontName).data
+  // is always undefined without it. Required for embedded-font reuse below.
   const task = pdfjsLib.getDocument({
     data: bytes.slice(),
     password: passwords.get(docId),
     standardFontDataUrl: '/pdfjs/standard_fonts/',
+    fontExtraProperties: true,
   })
   const doc  = await task.promise
   cache = { docId, task, doc }
