@@ -82,19 +82,30 @@ async function execRender(job: RenderJob): Promise<void> {
 
 // ─── BGRA → ImageBitmap ───────────────────────────────────────────────────────
 
-function bgraToRgba(bgra: Uint8Array): Uint8ClampedArray<ArrayBuffer> {
-  const rgba = new Uint8ClampedArray(bgra.length)
-  for (let i = 0; i < bgra.length; i += 4) {
-    rgba[i]     = bgra[i + 2]  // R ← B
-    rgba[i + 1] = bgra[i + 1]  // G
-    rgba[i + 2] = bgra[i]      // B ← R
-    rgba[i + 3] = bgra[i + 3]  // A
-  }
-  return rgba
+// DISABLED (true-edit A1): @hyzyla/pdfium already sets REVERSE_BYTE_ORDER for
+// colorSpace:'BGRA', so result.data arrives as RGBA already. Swapping here was
+// a double-swap that produced the red/blue channel bug (verified: expected
+// (219,235,250) at PDF point (300,635) in helv_test.pdf, got (250,235,219)).
+// Kept for reference — do not reinstate without re-verifying against the PoC.
+// function bgraToRgba(bgra: Uint8Array): Uint8ClampedArray<ArrayBuffer> {
+//   const rgba = new Uint8ClampedArray(bgra.length)
+//   for (let i = 0; i < bgra.length; i += 4) {
+//     rgba[i]     = bgra[i + 2]  // R ← B
+//     rgba[i + 1] = bgra[i + 1]  // G
+//     rgba[i + 2] = bgra[i]      // B ← R
+//     rgba[i + 3] = bgra[i + 3]  // A
+//   }
+//   return rgba
+// }
+
+// result.data is already RGBA; wrap its bytes directly (copy, since the typed
+// array must be Uint8ClampedArray<ArrayBuffer> for ImageData / createImageBitmap).
+function rgbaView(rgba: Uint8Array): Uint8ClampedArray<ArrayBuffer> {
+  return new Uint8ClampedArray(rgba.buffer.slice(rgba.byteOffset, rgba.byteOffset + rgba.byteLength) as ArrayBuffer)
 }
 
 async function bgraToImageBitmap(bgra: Uint8Array, width: number, height: number): Promise<ImageBitmap> {
-  return createImageBitmap(new ImageData(bgraToRgba(bgra), width, height))
+  return createImageBitmap(new ImageData(rgbaView(bgra), width, height))
 }
 
 // Render every page of a loaded doc to encoded image bytes (PNG/JPEG) via OffscreenCanvas.
@@ -111,7 +122,7 @@ async function renderToImages(
     const canvas = new OffscreenCanvas(result.width, result.height)
     const ctx = canvas.getContext('2d')
     if (!ctx) throw new Error('no 2D context for image export')
-    ctx.putImageData(new ImageData(bgraToRgba(result.data), result.width, result.height), 0, 0)
+    ctx.putImageData(new ImageData(rgbaView(result.data), result.width, result.height), 0, 0)
     const blob = await canvas.convertToBlob({ type: mime, quality })
     parts.push(new Uint8Array(await blob.arrayBuffer()))
   }
