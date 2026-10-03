@@ -8,8 +8,8 @@
 // Runs on the main thread but pdf.js spawns its own worker, so parsing stays off
 // the UI thread. Output is normalized to point space with a top-left origin.
 
-import * as pdfjsLib from 'pdfjs-dist'
-import PdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
+import PdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url'
 import type { PDFDocumentProxy, PDFDocumentLoadingTask } from 'pdfjs-dist'
 import type { TextItem, PageTextLayer } from './types'
 import { EMPTY_TEXT_THRESHOLD } from './constants'

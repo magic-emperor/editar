@@ -3,6 +3,7 @@ import fontkit from '@pdf-lib/fontkit'
 import { useEditStore } from '../../lib/editStore'
 import { loadPageTextLayer, getCachedTextLayer } from '../../lib/textLayer'
 import { getEmbeddedFontBytes, preloadPageFonts } from '../../lib/textExtract'
+import { textColorAt } from '../../lib/pdfEngine'
 import { classifyFamily } from '../../lib/fontClassify'
 // DISABLED (true-edit A6): IntelliFont's visual matcher (identify_from_buffer) returns
 // wrong families for every Latin font tested — see phase0/PHASE0_REPORT.md §5
@@ -96,13 +97,19 @@ function sampleColors(
   const bg = ring.medianRgb01()
   const bgLum = luminance(bgR, bgG, bgB)
 
-  const ink = new ColorAccumulator()
+  // Anti-aliased edge pixels drag a plain median toward the background (black text read
+  // as ~#383838), so keep only the strongest-contrast quarter of the ink pixels.
+  const inkPx: { r: number; g: number; b: number; d: number }[] = []
   for (let gy = top; gy <= bottom; gy++) {
     for (let gx = left; gx <= right; gx++) {
       const [r, g, b] = at(gx, gy)
-      if (Math.abs(luminance(r, g, b) - bgLum) > 0.4) ink.add(r, g, b)
+      const d = Math.abs(luminance(r, g, b) - bgLum)
+      if (d > 0.4) inkPx.push({ r, g, b, d })
     }
   }
+  inkPx.sort((a, b) => b.d - a.d)
+  const ink = new ColorAccumulator()
+  for (const q of inkPx.slice(0, Math.max(1, Math.ceil(inkPx.length * 0.25)))) ink.add(q.r, q.g, q.b)
   // No contrasting ink found in the box — fall back to black rather than guess.
   const color: RGB = ink.count > 0 ? ink.medianRgb01() : [0, 0, 0]
 
@@ -195,7 +202,7 @@ export function EditLayer({ docId, bytes, pageIndex, zoom, ptToPx, active }: Pro
   const spanRefs  = useRef<(HTMLSpanElement | null)[]>([])
   const placedRefs = useRef<Map<string, HTMLSpanElement>>(new Map())
   const opening   = useRef(false)
-  const moving    = useRef<{ id: string; sx: number; sy: number; ox: number; oy: number; moved: boolean } | null>(null)
+  const moving    = useRef<{ id: string; sx: number; sy: number; ox: number; oy: number; ob?: number; moved: boolean } | null>(null)
   const resizing  = useRef<{ sx: number; sy: number; ow: number; oh: number } | null>(null)
   const suppressClick = useRef(false)
 
@@ -329,6 +336,12 @@ export function EditLayer({ docId, bytes, pageIndex, zoom, ptToPx, active }: Pro
     const sampled = canvas && layer ? sampleColors(canvas, layer.pageWidth, layer.pageHeight, bbox) : null
     let bg: RGB = [1, 1, 1]
     if (sampled) { style.color = sampled.color; bg = sampled.bg }
+    // Exact text colour from the content stream (PDFium) for native text; canvas sampling
+    // above stays as the fallback (OCR words, or no char under the point).
+    if (item.source === 'native' && layer) {
+      const exact = await textColorAt(docId, pageIndex, bbox.x + bbox.w / 2, layer.pageHeight - (item.baseline - style.size * 0.3)).catch(() => null)
+      if (exact) style.color = exact
+    }
     opening.current = true
     setEditing({ kind: 'replace', bbox, original: word, value: word, style, baselineY: item.baseline, bg })
   }
@@ -356,7 +369,8 @@ export function EditLayer({ docId, bytes, pageIndex, zoom, ptToPx, active }: Pro
       const dx = (e.clientX - moving.current.sx) / scale
       const dy = (e.clientY - moving.current.sy) / scale
       if (Math.abs(e.clientX - moving.current.sx) > 3 || Math.abs(e.clientY - moving.current.sy) > 3) moving.current.moved = true
-      updateEdit(moving.current.id, { bbox: { ...currentBbox(moving.current.id), x: moving.current.ox + dx, y: moving.current.oy + dy } } as Partial<EditOp>)
+      const ob = moving.current.ob
+      updateEdit(moving.current.id, { bbox: { ...currentBbox(moving.current.id), x: moving.current.ox + dx, y: moving.current.oy + dy }, baselineY: ob !== undefined ? ob + dy : undefined } as Partial<EditOp>)
       return
     }
     if (drag) {
@@ -378,7 +392,7 @@ export function EditLayer({ docId, bytes, pageIndex, zoom, ptToPx, active }: Pro
   const onPlacedMouseDown = (e: React.MouseEvent, ed: EditOp) => {
     if (ed.kind === 'redact') return
     e.stopPropagation()
-    moving.current = { id: ed.id, sx: e.clientX, sy: e.clientY, ox: ed.bbox.x, oy: ed.bbox.y, moved: false }
+    moving.current = { id: ed.id, sx: e.clientX, sy: e.clientY, ox: ed.bbox.x, oy: ed.bbox.y, ob: ed.baselineY, moved: false }
   }
   const onPlacedClick = (e: React.MouseEvent, ed: EditOp) => {
     e.stopPropagation()

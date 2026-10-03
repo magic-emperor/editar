@@ -32,6 +32,7 @@
   overflow:    hidden;          /* keep redrawn text within its box (matches export) */
   white-space: pre;
   cursor:      move;
+  z-index:     1;            /* above the invisible hit spans, else they swallow clicks/drags */
 }
 .placed:hover { outline: 1px solid rgba(179, 64, 42, 0.5); overflow: visible; }
 .placed span { display: inline-block; pointer-events: none; transform-origin: 0 50%; }

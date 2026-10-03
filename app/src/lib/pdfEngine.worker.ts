@@ -15,6 +15,7 @@ export type WorkerReq =
   | { id: string; type: 'op';           payload: PdfOpRequest }
   | { id: string; type: 'pdfToImages';  docId: string; scale: number; format: 'png' | 'jpg'; quality: number }
   | { id: string; type: 'close';        docId: string }
+  | { id: string; type: 'textColorAt';  docId: string; pageIndex: number; x: number; y: number }
 
 export type WorkerRes =
   | { id: string; ok: true;  type: 'open';      docId: string; pageCount: number; pageSizes: PageSize[] }
@@ -23,6 +24,7 @@ export type WorkerRes =
   | { id: string; ok: true;  type: 'splitOp';    parts: Uint8Array[] }
   | { id: string; ok: true;  type: 'imagesOp';   parts: Uint8Array[] }
   | { id: string; ok: true;  type: 'close' }
+  | { id: string; ok: true;  type: 'textColorAt'; rgb: [number, number, number] | null }
   | { id: string; ok: false; error: string }
 
 // ─── PDFium init ──────────────────────────────────────────────────────────────
@@ -129,6 +131,41 @@ async function renderToImages(
   return parts
 }
 
+// ─── Exact text fill colour (true-edit A5 fix) ──────────────────────────────────
+// Reads the fill colour of the character at (x, y) — PDF points, BOTTOM-left origin —
+// straight from the content stream via PDFium's text API. The typed @hyzyla/pdfium
+// wrapper doesn't expose this, but the raw exports are on the page's module.
+type RawPdfium = {
+  HEAPU8: Uint8Array
+  wasmExports: { malloc(n: number): number; free(p: number): void }
+  _FPDFText_LoadPage(page: number): number
+  _FPDFText_ClosePage(tp: number): void
+  _FPDFText_GetCharIndexAtPos(tp: number, x: number, y: number, xTol: number, yTol: number): number
+  _FPDFText_GetFillColor(tp: number, i: number, r: number, g: number, b: number, a: number): number
+  _FPDF_ClosePage(page: number): void
+}
+function textColorAt(docId: string, pageIndex: number, x: number, y: number): [number, number, number] | null {
+  const doc = docs.get(docId)
+  if (!doc) return null
+  const page = doc.getPage(pageIndex) as unknown as { module: RawPdfium; pageIdx: number }
+  const M = page.module
+  const tp = M._FPDFText_LoadPage(page.pageIdx)
+  try {
+    if (!tp) return null
+    const idx = M._FPDFText_GetCharIndexAtPos(tp, x, y, 4, 4)
+    if (idx < 0) return null
+    const p = M.wasmExports.malloc(16)
+    try {
+      if (!M._FPDFText_GetFillColor(tp, idx, p, p + 4, p + 8, p + 12)) return null
+      const c = new Uint32Array(M.HEAPU8.buffer, p, 3)
+      return [c[0] / 255, c[1] / 255, c[2] / 255]
+    } finally { M.wasmExports.free(p) }
+  } finally {
+    if (tp) M._FPDFText_ClosePage(tp)
+    M._FPDF_ClosePage(page.pageIdx)
+  }
+}
+
 // ─── postMessage wrapper ─────────────────────────────────────────────────────
 
 function post(msg: WorkerRes, transfer: Transferable[] = []): void {
@@ -188,6 +225,11 @@ self.onmessage = async (e: MessageEvent) => {
       case 'pdfToImages': {
         const parts = await renderToImages(req.docId, req.scale, req.format, req.quality)
         post({ id: req.id, ok: true, type: 'imagesOp', parts }, parts.map(p => p.buffer as ArrayBuffer))
+        break
+      }
+
+      case 'textColorAt': {
+        post({ id: req.id, ok: true, type: 'textColorAt', rgb: textColorAt(req.docId, req.pageIndex, req.x, req.y) })
         break
       }
 

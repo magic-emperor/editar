@@ -153,6 +153,13 @@ export async function convertToImages(
   return res.parts
 }
 
+/** Exact fill colour (0..1 RGB) of the native text char at (x, y) in PDF points, bottom-left origin; null if none. */
+export async function textColorAt(docId: string, pageIndex: number, x: number, y: number): Promise<[number, number, number] | null> {
+  type R = Extract<WorkerRes, { type: 'textColorAt' }>
+  const res = await send<R>({ type: 'textColorAt', docId, pageIndex, x, y })
+  return res.rgb
+}
+
 /** Release the document from the worker's memory. Call when the user closes the file. */
 export async function closeDocument(docId: string): Promise<void> {
   await send({ type: 'close', docId })
