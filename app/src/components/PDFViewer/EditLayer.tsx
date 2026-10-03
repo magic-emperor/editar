@@ -28,6 +28,82 @@ function styleFromItem(it: TextItem): EditStyle {
 }
 const DEFAULT_STYLE: EditStyle = { size: 12, color: [0, 0, 0], bold: false, italic: false, family: 'sans' }
 
+// ─── Real text/background colour sampling (true-edit A5) ──────────────────────
+//
+// Replaces the hard-coded black text / white cover box with colours read from the
+// already-rendered page canvas (post-A1, so the bytes are correct RGBA).
+
+function median(nums: number[]): number {
+  if (nums.length === 0) return 0
+  const s = [...nums].sort((a, b) => a - b)
+  const mid = Math.floor(s.length / 2)
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2
+}
+const luminance = (r: number, g: number, b: number) => (0.299 * r + 0.587 * g + 0.114 * b) / 255
+
+// Accumulates per-channel samples and reduces them to a median RGB (0..1).
+class ColorAccumulator {
+  private readonly r: number[] = []; private readonly g: number[] = []; private readonly b: number[] = []
+  add(r: number, g: number, b: number): void { this.r.push(r); this.g.push(g); this.b.push(b) }
+  get count(): number { return this.r.length }
+  medianRgb255(): [number, number, number] { return [median(this.r), median(this.g), median(this.b)] }
+  medianRgb01(): RGB { const [r, g, b] = this.medianRgb255(); return [r / 255, g / 255, b / 255] }
+}
+
+type PixelAt = (gx: number, gy: number) => [number, number, number]
+
+/**
+ * Sample a word's real text colour and background colour from the rendered page canvas.
+ * bg = median colour of a 1px ring just outside `box`; text colour = median of the
+ * pixels inside `box` whose luminance differs from bg's by more than 40%. `box` is in
+ * PDF points, top-left origin (same space as TextItem/EditRect).
+ */
+function sampleColors(
+  canvas: HTMLCanvasElement, pageWidth: number, pageHeight: number, box: EditRect,
+): { bg: RGB; color: RGB } | null {
+  if (pageWidth <= 0 || pageHeight <= 0 || canvas.width <= 0 || canvas.height <= 0) return null
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
+  if (!ctx) return null
+  const sx = canvas.width  / pageWidth
+  const sy = canvas.height / pageHeight
+  const clampX = (v: number) => Math.max(0, Math.min(canvas.width  - 1, Math.round(v)))
+  const clampY = (v: number) => Math.max(0, Math.min(canvas.height - 1, Math.round(v)))
+  const left   = clampX(box.x * sx)
+  const top    = clampY(box.y * sy)
+  const right  = clampX((box.x + box.w) * sx)
+  const bottom = clampY((box.y + box.h) * sy)
+  // One extra pixel on each side so the "ring just outside the box" is in the same read.
+  const rLeft = clampX(left - 1), rTop = clampY(top - 1)
+  const rRight = clampX(right + 1), rBottom = clampY(bottom + 1)
+  const rw = Math.max(1, rRight - rLeft + 1), rh = Math.max(1, rBottom - rTop + 1)
+
+  let data: Uint8ClampedArray
+  try { data = ctx.getImageData(rLeft, rTop, rw, rh).data } catch { return null }
+  const at: PixelAt = (gx, gy) => {
+    const i = ((gy - rTop) * rw + (gx - rLeft)) * 4
+    return [data[i], data[i + 1], data[i + 2]]
+  }
+
+  const ring = new ColorAccumulator()
+  for (let gx = rLeft; gx <= rRight; gx++) { ring.add(...at(gx, rTop)); ring.add(...at(gx, rBottom)) }
+  for (let gy = rTop + 1; gy < rBottom; gy++) { ring.add(...at(rLeft, gy)); ring.add(...at(rRight, gy)) }
+  const [bgR, bgG, bgB] = ring.medianRgb255()
+  const bg = ring.medianRgb01()
+  const bgLum = luminance(bgR, bgG, bgB)
+
+  const ink = new ColorAccumulator()
+  for (let gy = top; gy <= bottom; gy++) {
+    for (let gx = left; gx <= right; gx++) {
+      const [r, g, b] = at(gx, gy)
+      if (Math.abs(luminance(r, g, b) - bgLum) > 0.4) ink.add(r, g, b)
+    }
+  }
+  // No contrasting ink found in the box — fall back to black rather than guess.
+  const color: RGB = ink.count > 0 ? ink.medianRgb01() : [0, 0, 0]
+
+  return { bg, color }
+}
+
 // Preview FontFaces registered from the document's own font bytes, so the live editor
 // preview renders in the real font (WYSIWYG with the exported result). Keyed by fontName.
 const previewFonts = new Map<string, string>()
@@ -52,6 +128,7 @@ interface Editing {
   style: EditStyle
   sourceId?: string
   baselineY?: number  // true-edit A3: real baseline from the source TextItem, top-origin points
+  bg?: RGB  // true-edit A5: sampled background colour (replace only); undefined for 'add'
 }
 
 function caretFromPoint(x: number, y: number): { node: Node; offset: number } | null {
@@ -222,8 +299,15 @@ export function EditLayer({ docId, bytes, pageIndex, zoom, ptToPx, active }: Pro
       const match = await identifyFont(item.fontName, embedded)
       if (match) style.family = classifyFamily(match.family).family
     }
+    // Real text/background colour (true-edit A5), sampled from the rendered page canvas
+    // instead of hard-coded black text on a white cover. Falls back to black-on-white if
+    // the canvas isn't available (e.g. not yet rendered) rather than block the edit.
+    const canvas = rootRef.current!.parentElement?.querySelector('canvas') ?? null
+    const sampled = canvas && layer ? sampleColors(canvas, layer.pageWidth, layer.pageHeight, bbox) : null
+    let bg: RGB = [1, 1, 1]
+    if (sampled) { style.color = sampled.color; bg = sampled.bg }
     opening.current = true
-    setEditing({ kind: 'replace', bbox, original: word, value: word, style, baselineY: item.baseline })
+    setEditing({ kind: 'replace', bbox, original: word, value: word, style, baselineY: item.baseline, bg })
   }
 
   const onRootMouseDown = (e: React.MouseEvent) => {
@@ -278,7 +362,7 @@ export function EditLayer({ docId, bytes, pageIndex, zoom, ptToPx, active }: Pro
     if (suppressClick.current) { suppressClick.current = false; return }
     if (ed.kind === 'redact') return
     opening.current = true
-    setEditing({ kind: ed.kind, bbox: { ...ed.bbox }, original: '', value: ed.newText, style: { ...ed.style }, sourceId: ed.id, baselineY: ed.baselineY })
+    setEditing({ kind: ed.kind, bbox: { ...ed.bbox }, original: '', value: ed.newText, style: { ...ed.style }, sourceId: ed.id, baselineY: ed.baselineY, bg: ed.kind === 'replace' ? ed.bg : undefined })
   }
 
   const commit = () => {
@@ -286,10 +370,10 @@ export function EditLayer({ docId, bytes, pageIndex, zoom, ptToPx, active }: Pro
     const t = editing.value
     if (editing.sourceId) {
       if (t.trim() === '') removeEdit(editing.sourceId)
-      else updateEdit(editing.sourceId, { newText: t, bbox: editing.bbox, style: editing.style, baselineY: editing.baselineY } as Partial<EditOp>)
+      else updateEdit(editing.sourceId, { newText: t, bbox: editing.bbox, style: editing.style, baselineY: editing.baselineY, bg: editing.bg } as Partial<EditOp>)
     } else if (editing.kind === 'replace') {
       if (t.trim() !== '' && t !== editing.original)
-        addEdit({ id: uuid(), kind: 'replace', page: pageIndex, bbox: editing.bbox, newText: t, style: editing.style, bg: [1, 1, 1], baselineY: editing.baselineY })
+        addEdit({ id: uuid(), kind: 'replace', page: pageIndex, bbox: editing.bbox, newText: t, style: editing.style, bg: editing.bg ?? [1, 1, 1], baselineY: editing.baselineY })
     } else if (t.trim() !== '') {
       addEdit({ id: uuid(), kind: 'add', page: pageIndex, bbox: editing.bbox, newText: t, style: editing.style, baselineY: editing.baselineY })
     }
