@@ -13,6 +13,9 @@ import { setOcrLanguage, getOcrLanguage } from '../../lib/ocr'
 import { OCR_LANGUAGES } from '../../lib/constants'
 import { clearTextLayerCache } from '../../lib/textLayer'
 import { dl, fmtSize, previewKind } from '../../lib/resultPreview'
+import { PdfResultPreview } from '../common/PdfResultPreview'
+import { SiteFooter } from '../Footer/SiteFooter'
+import { DesignerCredit } from '../common/DesignerCredit'
 import styles from './ToolPage.module.css'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -257,13 +260,24 @@ export function ToolPage({ toolId, onBack }: { toolId: string; onBack: () => voi
 
       {/* ── Header ── */}
       <header className={styles.header}>
-        <button className={styles.backBtn} onClick={onBack} aria-label="Back to tools">
-          ← Back to tools
-        </button>
-        <div className={styles.headerMeta}>
-          <span className={styles.toolName}>{conv.label}</span>
-          <span className={styles.toolNote}>{conv.note}</span>
+        <div className={styles.headerLeft}>
+          <button className={styles.backBtn} onClick={onBack} aria-label="Back to tools">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            <span>Back</span>
+          </button>
+          <div className={styles.logoBadge} onClick={onBack} style={{ cursor: 'pointer' }} title="Return to home screen">
+            <img src="/EDITAR.png" alt="EDITAR" className={styles.logoImg} />
+            <span className={styles.logoText}>EDITAR</span>
+          </div>
+          <div className={styles.headerDivider} />
+          <div className={styles.headerMeta}>
+            <span className={styles.toolName}>{conv.label}</span>
+            <span className={styles.toolNote}>{conv.note}</span>
+          </div>
         </div>
+        <DesignerCredit />
         <div className={styles.headerBadges}>
           {conv.kind === 'cloud' && (
             <span className={`${styles.serverDot} ${serverStatus === 'ok' ? styles.dotGreen : serverStatus === 'offline' ? styles.dotRed : styles.dotYellow}`} />
@@ -377,15 +391,36 @@ export function ToolPage({ toolId, onBack }: { toolId: string; onBack: () => voi
               </label>
 
               {files.length > 0 && (
-                <ul className={styles.fileList}>
-                  {files.map((f, i) => (
-                    <li key={i} className={styles.fileRow}>
-                      <span className={styles.fileRowName}>{f.name}</span>
-                      <span className={styles.fileRowSize}>{fmtSize(f.size)}</span>
-                      <button className={styles.removeBtn} onClick={() => setFiles(p => p.filter((_, j) => j !== i))} aria-label="Remove">×</button>
-                    </li>
-                  ))}
-                </ul>
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0.5rem 0 0.25rem' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--ink-secondary)', fontWeight: 600 }}>Uploaded files ({files.length})</span>
+                    <button
+                      type="button"
+                      onClick={() => setFiles(prev => [...prev])}
+                      style={{
+                        fontSize: '0.75rem',
+                        padding: '0.15rem 0.5rem',
+                        border: '1px solid var(--hairline)',
+                        borderRadius: 'var(--radius-control)',
+                        background: 'var(--paper-bg)',
+                        color: 'var(--ink-secondary)',
+                        cursor: 'pointer',
+                      }}
+                      title="Refresh file list"
+                    >
+                      ↻ Refresh
+                    </button>
+                  </div>
+                  <ul className={styles.fileList}>
+                    {files.map((f, i) => (
+                      <li key={i} className={styles.fileRow}>
+                        <span className={styles.fileRowName}>{f.name}</span>
+                        <span className={styles.fileRowSize}>{fmtSize(f.size)}</span>
+                        <button className={styles.removeBtn} onClick={() => setFiles(p => p.filter((_, j) => j !== i))} aria-label="Remove">×</button>
+                      </li>
+                    ))}
+                  </ul>
+                </>
               )}
             </>
           )}
@@ -500,14 +535,28 @@ export function ToolPage({ toolId, onBack }: { toolId: string; onBack: () => voi
             </div>
           )}
 
-          {/* ── Terminal log ── */}
+          {/* ── Activity / Status Logs (EDITAR style) ── */}
           {logs.length > 0 && (
             <div className={styles.terminal}>
-              {logs.map((line, i) => (
-                <div key={i} className={`${styles.termLine} ${i === logs.length - 1 ? styles.termLineLast : ''}`}>
-                  {line}
-                </div>
-              ))}
+              <div className={styles.logHeader}>
+                <span className={styles.logDot} />
+                <span className={styles.logTitle}>Activity</span>
+              </div>
+              <div className={styles.logList}>
+                {logs.map((l, i) => {
+                  const match = l.match(/^\[(.*?)\]\s*(.*)$/)
+                  const time = match ? match[1] : ''
+                  const text = match ? match[2] : l
+                  const isLast = i === logs.length - 1
+                  const isDone = text.toLowerCase().includes('done') || text.toLowerCase().includes('ready') || text.startsWith('✓')
+                  return (
+                    <div key={i} className={`${styles.termLine} ${isLast ? styles.termLineLast : ''} ${isDone ? styles.termSuccess : ''}`}>
+                      {time && <span className={styles.termTime}>{time}</span>}
+                      <span className={styles.termMsg}>{text}</span>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           )}
 
@@ -547,8 +596,8 @@ export function ToolPage({ toolId, onBack }: { toolId: string; onBack: () => voi
                           {kind === 'image' && previewUrl && (
                             <img className={styles.previewImg} src={previewUrl} alt={f.name} />
                           )}
-                          {kind === 'pdf' && previewUrl && (
-                            <iframe className={styles.previewFrame} src={previewUrl} title={f.name} />
+                          {kind === 'pdf' && (
+                            <PdfResultPreview bytes={f.bytes} fileName={f.name} />
                           )}
                           {kind === 'none' && (
                             <p className={styles.previewNone}>Preview not available for this file type — download to view.</p>
@@ -568,6 +617,7 @@ export function ToolPage({ toolId, onBack }: { toolId: string; onBack: () => voi
           )}
         </section>
       </div>
+      <SiteFooter />
     </div>
   )
 }

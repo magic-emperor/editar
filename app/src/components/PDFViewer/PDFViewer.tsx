@@ -48,7 +48,7 @@ const RENDER_MUL = BASE_RENDER_SCALE * DPR
 
 export function PDFViewer({ onOpenConvert: _onOpenConvert }: { onOpenConvert: () => void }) {
   const { file, affectedPages, setPageCount, setAffectedPages, setDocId: setStoreDocId } = useFileStore()
-  const { reset: resetEdits, setEditMode } = useEditStore()
+  const { reset: resetEdits } = useEditStore()
   const { aiMode: _aiMode, setAiMode, licenseKey, consentedDocs, resetAIState } = useAIStore()
   const { activeTool, setActiveTool, setHighlightColor, highlightColor, loadForDoc, clearAnnotations } = useAnnotationStore()
 
@@ -57,7 +57,6 @@ export function PDFViewer({ onOpenConvert: _onOpenConvert }: { onOpenConvert: ()
   const [zoom,        setZoom]        = useState(DEFAULT_ZOOM)
   const [renderScale, setRenderScale] = useState(DEFAULT_ZOOM * RENDER_MUL)
   const [currentPage, setCurrentPage] = useState(0)
-  const [jumpInput,   setJumpInput]   = useState('')
   const [error,       setError]       = useState<string | null>(null)
 
   // Find-in-page
@@ -394,133 +393,36 @@ export function PDFViewer({ onOpenConvert: _onOpenConvert }: { onOpenConvert: ()
       />
 
       <div className={styles.main}>
-        <div className={styles.topBar} role="toolbar" aria-label="Viewer controls">
-          <span className={styles.pageInfo}>
-            <span>Page</span>
-            <input
-              className={styles.pageInput}
-              type="number"
-              min={1}
-              max={pageSizes.length}
-              value={jumpInput !== '' ? jumpInput : currentPage + 1}
-              onChange={e => setJumpInput(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter') {
-                  const n = parseInt(jumpInput, 10)
-                  if (!isNaN(n) && n >= 1 && n <= pageSizes.length) jumpToPage(n - 1)
-                  setJumpInput('')
-                } else if (e.key === 'Escape') {
-                  setJumpInput('')
-                }
-              }}
-              onBlur={() => setJumpInput('')}
-              aria-label="Current page"
-            />
-            <span aria-live="polite" aria-atomic>of {pageSizes.length}</span>
+        {/* Folio Sub Info Bar (Row 3) */}
+        <div className={styles.infoBar} role="toolbar" aria-label="Viewer controls">
+          <span className={styles.pageCountInfo}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            Pages {pageSizes.length} pages
           </span>
 
-          <div className={styles.rightControls}>
-            <div className={styles.zoomControls} role="group" aria-label="Zoom level">
-              <button
-                className={styles.zoomBtn}
-                onClick={zoomOut}
-                disabled={zoom <= ZOOM_STEPS[0]}
-                aria-label="Zoom out"
-              >−</button>
-              <span className={styles.zoomLabel} aria-live="polite">
-                {Math.round(zoom * 100)}%
-              </span>
-              <button
-                className={styles.zoomBtn}
-                onClick={zoomIn}
-                disabled={zoom >= ZOOM_STEPS[ZOOM_STEPS.length - 1]}
-                aria-label="Zoom in"
-              >+</button>
-            </div>
-            {/* DISABLED: OCR language dropdown — re-enable when free translation is implemented
-            <select
-              value={ocrLang}
-              onChange={async e => {
-                const lang = e.target.value
-                setOcrLang(lang)
-                await setOcrLanguage(lang)
-                if (docId) clearTextLayerCache(docId)
-              }}
-              title="OCR language — applies when reading scanned pages"
-              style={{ fontSize: '0.8rem', padding: '0.25rem 0.4rem', border: '1px solid var(--hairline)', borderRadius: 'var(--radius-control)', background: 'var(--paper)', color: 'var(--ink)', cursor: 'pointer' }}
-              aria-label="OCR language"
-            >
-              {OCR_LANGUAGES.map(l => (
-                <option key={l.code} value={l.code}>{l.label}</option>
-              ))}
-            </select>
-            */}
-            {/* TABLES BUTTON — moved to home page; re-enable here if inline table mode is wanted
+          <span className={styles.infoHint}>
+            Click any text to edit, or click anywhere to add text.
+          </span>
+
+          <div className={styles.zoomControls}>
             <button
-              className={tableMode ? styles.tableBtnActive : styles.tableBtn}
-              onClick={() => {
-                const next = !tableMode
-                setTableMode(next)
-                setTableSelection(null)
-                if (next) setEditMode(false)
-              }}
-              aria-pressed={tableMode}
-              aria-label="Toggle table detection"
-              title="Detect tables"
-            >⊞ Tables</button>
-            {tableMode && tableBasket.length > 0 && (
-              <button className={styles.tableBtnActive} onClick={exportBasketTables} disabled={exportingAll}
-                title="Export selected tables">
-                {exportingAll ? 'Exporting…' : `Export selected (${tableBasket.length})`}
-              </button>
-            )}
-            {tableMode && (
-              <button className={styles.tableBtn} onClick={exportAllTables} disabled={exportingAll}
-                title="Export all tables">
-                {exportingAll ? 'Scanning…' : 'Export all tables'}
-              </button>
-            )}
-            */}
-            {/* AI ASSIST BUTTON — feature gated; re-enable when license system is live
+              className={styles.zoomBtn}
+              onClick={zoomOut}
+              disabled={zoom <= ZOOM_STEPS[0]}
+              aria-label="Zoom out"
+            >−</button>
+            <span className={styles.zoomLabel} aria-live="polite">
+              {Math.round(zoom * 100)}%
+            </span>
             <button
-              className={aiPanelOpen ? styles.tableBtnActive : styles.tableBtn}
-              style={!licenseKey ? { opacity: 0.55 } : undefined}
-              onClick={handleAIButtonClick}
-              aria-pressed={aiPanelOpen}
-              title={!licenseKey ? 'Enter a license key to unlock AI features' : 'AI Assist'}
-            >
-              {!licenseKey ? '🔒 AI Assist' : aiPanelOpen ? `✦ AI · ${aiMode}` : '✦ AI Assist'}
-            </button>
-            */}
-            {/* TRANSLATE BUTTON — hidden; re-enable when hosting translation server
-            <button
-              className={translateOpen ? styles.tableBtnActive : styles.tableBtn}
-              onClick={() => {
-                setTranslateOpen(o => {
-                  if (o) setPageTranslations({})
-                  return !o
-                })
-              }}
-              aria-pressed={translateOpen}
-              title="Translate current page to English"
-            >⟳ Translate</button>
-            */}
-            <button
-              className={activeTool ? styles.tableBtnActive : styles.tableBtn}
-              onClick={() => {
-                if (activeTool) { setActiveTool(null) }
-                else {
-                  setActiveTool('highlight')
-                  setEditMode(false); setTableMode(false); setTableSelection(null)
-                  setAiPanelOpen(false); setAiMode('off')
-                }
-              }}
-              aria-pressed={!!activeTool}
-              title="Annotate — highlight, underline, notes"
-            >✎ Annotate</button>
-            {/* CONVERT BUTTON — converters now live on the home page grid
-            <button className={styles.convertBtn} onClick={onOpenConvert}>Convert</button>
-            */}
+              className={styles.zoomBtn}
+              onClick={zoomIn}
+              disabled={zoom >= ZOOM_STEPS[ZOOM_STEPS.length - 1]}
+              aria-label="Zoom in"
+            >+</button>
           </div>
         </div>
 

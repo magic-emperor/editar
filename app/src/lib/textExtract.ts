@@ -8,8 +8,8 @@
 // Runs on the main thread but pdf.js spawns its own worker, so parsing stays off
 // the UI thread. Output is normalized to point space with a top-left origin.
 
-import * as pdfjsLib from 'pdfjs-dist'
-import PdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
+import PdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url'
 import type { PDFDocumentProxy, PDFDocumentLoadingTask } from 'pdfjs-dist'
 import type { TextItem, PageTextLayer } from './types'
 import { EMPTY_TEXT_THRESHOLD } from './constants'
@@ -50,10 +50,14 @@ async function getDoc(docId: string, bytes: Uint8Array): Promise<PDFDocumentProx
   // .slice() — pdf.js may transfer/detach the buffer; never touch fileStore's copy.
   // standardFontDataUrl: self-hosted standard-14 font metrics so pdf.js computes
   // accurate glyph widths for non-embedded fonts (keeps selection/highlight aligned).
+  // fontExtraProperties: true (true-edit A2) — pdf.js 6.0.227 calls font.clearData()
+  // before resolving the font unless this is set, so commonObjs.get(fontName).data
+  // is always undefined without it. Required for embedded-font reuse below.
   const task = pdfjsLib.getDocument({
     data: bytes.slice(),
     password: passwords.get(docId),
     standardFontDataUrl: '/pdfjs/standard_fonts/',
+    fontExtraProperties: true,
   })
   const doc  = await task.promise
   cache = { docId, task, doc }
@@ -90,8 +94,10 @@ export async function extractNativeText(
     const w  = raw.width
     // Flip to top-left origin: top of glyph ≈ baseline − ascent ≈ (H − yBaseline) − h
     const y  = pageHeight - yBaseline - h
+    // True baseline in top-origin points (true-edit A3) — exact, not the 0.8*size guess.
+    const baseline = pageHeight - yBaseline
 
-    items.push({ str, x, y, w, h, fontName: raw.fontName, source: 'native' })
+    items.push({ str, x, y, w, h, baseline, fontName: raw.fontName, source: 'native' })
   }
 
   const source: PageTextLayer['source'] = charCount < EMPTY_TEXT_THRESHOLD ? 'empty' : 'native'

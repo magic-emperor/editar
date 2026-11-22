@@ -5,6 +5,9 @@ import type { WatermarkPos } from '../../lib/pdfOps'
 import { dl, fmtSize, previewKind } from '../../lib/resultPreview'
 import { zipFiles } from '../../lib/zip'
 import { PagePreview } from './PagePreview'
+import { PdfResultPreview } from '../common/PdfResultPreview'
+import { SiteFooter } from '../Footer/SiteFooter'
+import { DesignerCredit } from '../common/DesignerCredit'
 import styles from './EditPage.module.css'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -64,7 +67,7 @@ function DropZone({
 
   const handleFiles = (fl: FileList | null) => {
     if (!fl?.length) return
-    const arr = Array.from(fl).filter(f => f.name.toLowerCase().endsWith('.pdf'))
+    const arr = Array.from(fl).filter(f => f.name.toLowerCase().endsWith('.pdf') || f.type === 'application/pdf')
     if (arr.length) onFiles(multi ? arr : [arr[0]])
   }
 
@@ -109,6 +112,8 @@ export function EditPage({ opId, onBack }: { opId: string; onBack: () => void })
   const [wmOpacity,   setWmOpacity]   = useState(0.3)
   const [pnStart,     setPnStart]     = useState(1)
   const [pnPos,       setPnPos]       = useState<'bottom-center' | 'bottom-right'>('bottom-center')
+  const [compressLevel, setCompressLevel] = useState<'low' | 'recommended' | 'extreme'>('recommended')
+  const [removeMeta,  setRemoveMeta]  = useState(true)
 
   // ── Run state ──
   const [running, setRunning] = useState(false)
@@ -236,10 +241,21 @@ export function EditPage({ opId, onBack }: { opId: string; onBack: () => void })
         setResult({ files: [{ name: `${stem}-rotated.pdf`, bytes, mime: 'application/pdf' }] })
 
       } else if (opId === 'compress') {
-        log('Compressing…')
-        const res = await runOp({ op: 'compress', file: firstPdf!.bytes })
-        const saved = firstPdf!.bytes.length - res.length
-        log(`Done — saved ${fmtSize(Math.max(0, saved))} (${fmtSize(res.length)})`)
+        log(`Compressing PDF with ${compressLevel} profile…`)
+        const origLen = firstPdf!.bytes.length
+        const res = await runOp({
+          op: 'compress',
+          file: firstPdf!.bytes,
+          level: compressLevel,
+          removeMetadata: removeMeta,
+        })
+        const saved = origLen - res.length
+        const pct = Math.round((saved / origLen) * 100)
+        if (saved > 0) {
+          log(`✓ Done — saved ${fmtSize(saved)} (${pct}% reduction) · New size: ${fmtSize(res.length)}`)
+        } else {
+          log(`✓ Done — ${fmtSize(res.length)} (Document was already highly optimized)`)
+        }
         setResult({ files: [{ name: `${stem}-compressed.pdf`, bytes: res, mime: 'application/pdf' }] })
 
       } else if (opId === 'watermark') {
@@ -302,18 +318,55 @@ export function EditPage({ opId, onBack }: { opId: string; onBack: () => void })
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <button className={styles.backBtn} onClick={onBack}>← Back to tools</button>
-        <div className={styles.headerMeta}>
-          <span className={styles.toolName}>{meta.label}</span>
-          <span className={styles.toolNote}>{meta.note}</span>
+        <div className={styles.headerLeft}>
+          <button className={styles.backBtn} onClick={onBack} aria-label="Back to tools">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            <span>Back</span>
+          </button>
+          <div className={styles.logoBadge} onClick={onBack} style={{ cursor: 'pointer' }} title="Return to home screen">
+            <img src="/EDITAR.png" alt="EDITAR" className={styles.logoImg} />
+            <span className={styles.logoText}>EDITAR</span>
+          </div>
+          <div className={styles.headerDivider} />
+          <div className={styles.headerMeta}>
+            <span className={styles.toolName}>{meta.label}</span>
+            <span className={styles.toolNote}>{meta.note}</span>
+          </div>
         </div>
+        <DesignerCredit />
         <span className={styles.badge}>LOCAL</span>
       </header>
 
       <div className={styles.body}>
         {/* ── Upload column ── */}
         <section className={`${styles.col} ${styles.colWide}`}>
-          <h2 className={styles.secLabel}>{isMulti ? 'Upload PDFs' : 'Upload PDF'}</h2>
+          <div className={styles.secHeader}>
+            <h2 className={styles.secLabel}>{isMulti ? 'Upload PDFs' : 'Upload PDF'}</h2>
+            {pdfs.length > 0 && (
+              <button
+                className={styles.refreshBtn}
+                onClick={async () => {
+                  setLoading(true)
+                  try {
+                    const refreshed = await Promise.all(pdfs.map(async p => {
+                      const { docId, pageCount, pageSizes } = await openDocument(p.bytes)
+                      return { ...p, docId, pageCount, pageSizes }
+                    }))
+                    setPdfs(refreshed)
+                  } catch {
+                    // keep current
+                  } finally {
+                    setLoading(false)
+                  }
+                }}
+                title="Refresh uploaded documents"
+              >
+                ↻ Refresh
+              </button>
+            )}
+          </div>
 
           {pdfs.length === 0 ? (
             <DropZone
@@ -339,14 +392,26 @@ export function EditPage({ opId, onBack }: { opId: string; onBack: () => void })
               {isMulti && (
                 <label className={styles.addMoreBtn}>
                   <input type="file" accept=".pdf,application/pdf" multiple className={styles.hidden}
-                    onChange={e => { if (e.target.files) loadPdfs(Array.from(e.target.files)); e.currentTarget.value = '' }} />
+                    onChange={e => {
+                      if (e.target.files) {
+                        const arr = Array.from(e.target.files).filter(f => f.name.toLowerCase().endsWith('.pdf') || f.type === 'application/pdf')
+                        if (arr.length) loadPdfs(arr)
+                      }
+                      e.currentTarget.value = ''
+                    }} />
                   + Add more PDFs
                 </label>
               )}
               {!isMulti && (
                 <label className={styles.changeBtn}>
                   <input type="file" accept=".pdf,application/pdf" className={styles.hidden}
-                    onChange={e => { if (e.target.files?.[0]) loadPdfs([e.target.files[0]]); e.currentTarget.value = '' }} />
+                    onChange={e => {
+                      if (e.target.files?.[0]) {
+                        const f = e.target.files[0]
+                        if (f.name.toLowerCase().endsWith('.pdf') || f.type === 'application/pdf') loadPdfs([f])
+                      }
+                      e.currentTarget.value = ''
+                    }} />
                   Change file
                 </label>
               )}
@@ -498,6 +563,42 @@ export function EditPage({ opId, onBack }: { opId: string; onBack: () => void })
             </div>
           )}
 
+          {opId === 'compress' && (
+            <div className={styles.optBox}>
+              <h2 className={styles.secLabel}>Compression profile</h2>
+              <div className={styles.optRow}>
+                <span className={styles.optLabel}>Level</span>
+                <div className={styles.pills}>
+                  {([
+                    { id: 'recommended', label: 'Recommended', hint: 'Balanced quality and size reduction' },
+                    { id: 'extreme',     label: 'Extreme',     hint: 'Aggressive image compression and reduction' },
+                    { id: 'low',         label: 'Low',         hint: 'Lossless stream packing only' },
+                  ] as const).map(lvl => (
+                    <button
+                      key={lvl.id}
+                      className={`${styles.pill} ${compressLevel === lvl.id ? styles.pillOn : ''}`}
+                      onClick={() => setCompressLevel(lvl.id)}
+                      title={lvl.hint}
+                    >
+                      {lvl.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className={styles.optRow} style={{ marginTop: '0.2rem' }}>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.8rem', color: 'var(--ink)' }}>
+                  <input
+                    type="checkbox"
+                    checked={removeMeta}
+                    onChange={e => setRemoveMeta(e.target.checked)}
+                    style={{ accentColor: '#993d31', cursor: 'pointer' }}
+                  />
+                  <span>Strip metadata & XML history (smaller file, private)</span>
+                </label>
+              </div>
+            </div>
+          )}
+
           {/* ── Run button ── */}
           <button className={styles.runBtn} disabled={!canRun} onClick={run}>
             {running ? 'Processing…' : meta.label + ' →'}
@@ -505,12 +606,28 @@ export function EditPage({ opId, onBack }: { opId: string; onBack: () => void })
 
           {running && <div className={styles.progressBar}><div className={styles.progressFill} /></div>}
 
-          {/* ── Terminal ── */}
+          {/* ── Activity / Status Logs (EDITAR style) ── */}
           {logs.length > 0 && (
             <div className={styles.terminal}>
-              {logs.map((l, i) => (
-                <div key={i} className={`${styles.termLine} ${i === logs.length - 1 ? styles.termLast : ''}`}>{l}</div>
-              ))}
+              <div className={styles.logHeader}>
+                <span className={styles.logDot} />
+                <span className={styles.logTitle}>Activity</span>
+              </div>
+              <div className={styles.logList}>
+                {logs.map((l, i) => {
+                  const match = l.match(/^\[(.*?)\]\s*(.*)$/)
+                  const time = match ? match[1] : ''
+                  const text = match ? match[2] : l
+                  const isLast = i === logs.length - 1
+                  const isDone = text.toLowerCase().includes('done') || text.toLowerCase().includes('complete') || text.startsWith('✓')
+                  return (
+                    <div key={i} className={`${styles.termLine} ${isLast ? styles.termLast : ''} ${isDone ? styles.termSuccess : ''}`}>
+                      {time && <span className={styles.termTime}>{time}</span>}
+                      <span className={styles.termMsg}>{text}</span>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           )}
 
@@ -547,8 +664,8 @@ export function EditPage({ opId, onBack }: { opId: string; onBack: () => void })
                           {kind === 'image' && previewUrl && (
                             <img className={styles.previewImg} src={previewUrl} alt={f.name} />
                           )}
-                          {kind === 'pdf' && previewUrl && (
-                            <iframe className={styles.previewFrame} src={previewUrl} title={f.name} />
+                          {kind === 'pdf' && (
+                            <PdfResultPreview bytes={f.bytes} fileName={f.name} />
                           )}
                           {kind === 'none' && (
                             <p className={styles.previewNone}>Preview not available for this file type — download to view.</p>
@@ -571,6 +688,7 @@ export function EditPage({ opId, onBack }: { opId: string; onBack: () => void })
           )}
         </section>
       </div>
+      <SiteFooter />
     </div>
   )
 }

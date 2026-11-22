@@ -1,0 +1,140 @@
+.wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.designerBadge {
+  position: relative;
+  font-size: 0.8125rem;
+  color: #57534e;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  background: #ffffff;
+  border: 1px solid rgba(153, 61, 49, 0.22);
+  padding: 0.3rem 0.95rem;
+  border-radius: 9999px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(153, 61, 49, 0.05);
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  transition: all 200ms ease;
+  user-select: none;
+}
+
+/* Subtle light shine traversing the badge */
+.designerBadge::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.9) 45%,
+    rgba(153, 61, 49, 0.16) 70%,
+    transparent 100%
+  );
+  transform: skewX(-25deg);
+  animation: badgeShine 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+}
+
+@keyframes badgeShine {
+  0%, 65% {
+    left: -100%;
+  }
+  100% {
+    left: 200%;
+  }
+}
+
+.designerBadge:hover {
+  border-color: rgba(153, 61, 49, 0.45);
+  box-shadow: 0 3px 10px rgba(153, 61, 49, 0.12), 0 0 0 1px rgba(153, 61, 49, 0.15);
+  transform: translateY(-1px);
+}
+
+.designerSparkle {
+  font-size: 0.8rem;
+  display: inline-block;
+  animation: sparklePulse 2.4s ease-in-out infinite;
+}
+
+@keyframes sparklePulse {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.25) rotate(15deg);
+    opacity: 1;
+    filter: drop-shadow(0 0 5px rgba(153, 61, 49, 0.5));
+  }
+}
+
+.designerText {
+  color: #6a635d;
+}
+
+.designerLink {
+  color: #993d31;
+  text-decoration: none;
+  font-weight: 600;
+  border-bottom: 1.5px solid rgba(153, 61, 49, 0.35);
+  padding-bottom: 1px;
+  transition: all 160ms ease;
+}
+
+.designerLink:hover {
+  color: #c05240;
+  border-bottom-color: #c05240;
+}
+
+/* Tester credit for Aien — clearly visible */
+.testerSecret {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: #6a635d;
+  font-size: 0.76rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  opacity: 1;
+  cursor: default;
+  margin-left: 0.35rem;
+  border-left: 1px solid rgba(0, 0, 0, 0.12);
+  padding-left: 0.45rem;
+}
+
+.testerDot {
+  display: none;
+}
+
+.testerName {
+  font-style: normal;
+  color: #6a635d;
+  transition: color 150ms ease;
+}
+
+.testerName strong {
+  font-weight: 700;
+  color: #993d31;
+  transition: color 150ms ease;
+}
+
+.testerSecret:hover .testerName {
+  color: #1c1917;
+}
+
+.testerSecret:hover .testerName strong {
+  color: #c05240;
+}
+
+@media (max-width: 768px) {
+  .wrap {
+    display: none;
+  }
+}

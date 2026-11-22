@@ -120,9 +120,15 @@ function MergePanel({ file, running, onRun }: PanelProps) {
   const inputRef = useRef<HTMLInputElement>(null)
 
   const addFile = (e: ChangeEvent<HTMLInputElement>) => {
-    const f = Array.from(e.target.files ?? []).filter(f => f.name.endsWith('.pdf'))
+    const f = Array.from(e.target.files ?? []).filter(
+      f => f.name.toLowerCase().endsWith('.pdf') || f.type === 'application/pdf',
+    )
     setExtras(prev => [...prev, ...f])
     e.target.value = ''
+  }
+
+  const handleRefresh = () => {
+    setExtras(prev => [...prev])
   }
 
   const handleMerge = async () => {
@@ -132,7 +138,10 @@ function MergePanel({ file, running, onRun }: PanelProps) {
 
   return (
     <>
-      <p className={styles.panelTitle}>Merge PDFs</p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <p className={styles.panelTitle} style={{ margin: 0 }}>Merge PDFs</p>
+        <button className={styles.refreshBtn} onClick={handleRefresh} title="Refresh document list">↻ Refresh</button>
+      </div>
       <p className={styles.hint}>Current file is first. Add files to append.</p>
       {extras.length > 0 && (
         <ul className={styles.fileList}>
@@ -150,7 +159,7 @@ function MergePanel({ file, running, onRun }: PanelProps) {
         onClick={() => inputRef.current?.click()}>
         + Add PDF
       </button>
-      <input ref={inputRef} type="file" accept=".pdf" multiple
+      <input ref={inputRef} type="file" accept=".pdf,application/pdf" multiple
         style={{ display: 'none' }} onChange={addFile} />
       <button className={styles.applyBtn} onClick={handleMerge}
         disabled={running || extras.length === 0}>
@@ -470,7 +479,7 @@ export function Toolbar() {
   const Panel = activeOp ? PANELS[activeOp] : null
 
   return (
-    <aside className={styles.sidebar} aria-label="PDF operations">
+    <aside className={`${styles.sidebar}${editMode ? ' ' + styles.editMode : ''}`} aria-label="PDF operations">
       <EditPanel />
 
       {editMode ? null : (

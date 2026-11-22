@@ -1,6 +1,5 @@
-import { useEffect, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import type { EditStyle, FontFamily, RGB } from '../../lib/types'
-import { FAMILY_LABELS } from '../../lib/fontClassify'
 import styles from './EditControls.module.css'
 
 function rgbToHex([r, g, b]: RGB): string {
@@ -14,55 +13,184 @@ function hexToRgb(hex: string): RGB {
 }
 const clampSize = (n: number) => Math.min(400, Math.max(2, n))
 
+// Preset font sizes matching Folio/Sejda
+const PRESET_SIZES = [6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 22, 24, 28, 32, 36, 40, 48, 56, 64, 72]
+
+// Expanded font options grouped by category
+interface FontOption { family: FontFamily; label: string; group: string }
+const FONT_OPTIONS: FontOption[] = [
+  // Sans-serif
+  { family: 'sans',       label: 'Helvetica / Arial',  group: 'Sans-serif' },
+  { family: 'roboto',     label: 'Roboto',              group: 'Sans-serif' },
+  // Serif
+  { family: 'serif',      label: 'Times New Roman',     group: 'Serif' },
+  { family: 'ptserif',    label: 'PT Serif',            group: 'Serif' },
+  // Monospace
+  { family: 'mono',       label: 'Courier New',         group: 'Monospace' },
+  { family: 'robotomono', label: 'Roboto Mono',         group: 'Monospace' },
+]
+
 interface Props {
   style:    EditStyle
   onChange: (patch: Partial<EditStyle>) => void
   position: CSSProperties
+  onDelete?: () => void
 }
 
-export function EditControls({ style, onChange, position }: Props) {
-  // Local string so the field can be emptied/backspaced while typing.
-  const [sizeStr, setSizeStr] = useState(String(Math.round(style.size)))
+export function EditControls({ style, onChange, position, onDelete }: Props) {
+  const [sizeStr,     setSizeStr]     = useState(String(Math.round(style.size)))
+  const [sizeOpen,    setSizeOpen]    = useState(false)
+  const [fontOpen,    setFontOpen]    = useState(false)
+  const colorRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => { setSizeStr(String(Math.round(style.size))) }, [style.size])
 
   const commitSize = (raw: string) => {
     const n = parseFloat(raw)
     if (!isNaN(n) && n > 0) onChange({ size: clampSize(n) })
-    else setSizeStr(String(Math.round(style.size)))   // revert empty/invalid on blur
+    else setSizeStr(String(Math.round(style.size)))
   }
-  const step = (d: number) => onChange({ size: clampSize(Math.round(style.size) + d) })
+
+  // Show original PDF font name (read-only label above the picker)
+  const pdfFontName = style.fontName || null
+  const displayFontName = pdfFontName
+    ? pdfFontName.replace(/^[A-Z]{6}\+/, '') // strip subset prefix like "BCDEEE+"
+    : null
 
   return (
-    <div className={styles.bar} data-editui style={position}
-      onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
-      <select className={styles.select} value={style.family}
-        onChange={e => onChange({ family: e.target.value as FontFamily })} title="Font">
-        {(Object.keys(FAMILY_LABELS) as FontFamily[]).map(f =>
-          <option key={f} value={f}>{FAMILY_LABELS[f]}</option>)}
-      </select>
+    <div
+      className={styles.bar}
+      data-editui
+      style={position}
+      onMouseDown={e => { e.preventDefault(); e.stopPropagation() }}
+      onClick={e => e.stopPropagation()}
+    >
+      {/* Bold */}
+      <button
+        className={`${styles.btn} ${style.bold ? styles.active : ''}`}
+        onMouseDown={e => { e.preventDefault(); e.stopPropagation() }}
+        onClick={() => onChange({ bold: !style.bold })}
+        title="Bold (Ctrl+B)"
+      >
+        <strong>B</strong>
+      </button>
 
-      <div className={styles.sizeGroup}>
-        <button className={styles.step} onClick={() => step(-1)} title="Smaller" tabIndex={-1}>−</button>
-        <input className={styles.size} type="text" inputMode="numeric" value={sizeStr}
-          onChange={e => { setSizeStr(e.target.value); commitSizeLive(e.target.value, onChange) }}
+      {/* Italic */}
+      <button
+        className={`${styles.btn} ${style.italic ? styles.active : ''}`}
+        onMouseDown={e => { e.preventDefault(); e.stopPropagation() }}
+        onClick={() => onChange({ italic: !style.italic })}
+        title="Italic (Ctrl+I)"
+        style={{ fontStyle: 'italic' }}
+      >
+        I
+      </button>
+
+      <div className={styles.divider} />
+
+      {/* Font size — Tt label + editable number */}
+      <span className={styles.ttLabel}>Tt</span>
+      <div className={styles.sizeWrap}>
+        <input
+          className={styles.sizeInput}
+          type="text"
+          inputMode="numeric"
+          value={sizeStr}
+          onMouseDown={e => e.stopPropagation()}
+          onChange={e => { setSizeStr(e.target.value); const n = parseFloat(e.target.value); if (!isNaN(n) && n > 0) onChange({ size: clampSize(n) }) }}
           onBlur={e => commitSize(e.target.value)}
-          title="Font size (pt)" />
-        <button className={styles.step} onClick={() => step(1)} title="Larger" tabIndex={-1}>+</button>
+          onFocus={() => setSizeOpen(true)}
+          onBlurCapture={() => setTimeout(() => setSizeOpen(false), 150)}
+          title="Font size (pt)"
+        />
+        {sizeOpen && (
+          <div className={styles.sizeDropdown} data-editui>
+            {PRESET_SIZES.map(s => (
+              <button key={s} className={`${styles.sizeItem} ${Math.round(style.size) === s ? styles.sizeItemActive : ''}`}
+                onMouseDown={e => { e.preventDefault(); e.stopPropagation(); onChange({ size: s }); setSizeOpen(false) }}
+              >{s}</button>
+            ))}
+          </div>
+        )}
       </div>
 
-      <button className={`${styles.toggle} ${style.bold ? styles.on : ''}`}
-        onClick={() => onChange({ bold: !style.bold })} title="Bold (Ctrl+B)" style={{ fontWeight: 700 }}>B</button>
-      <button className={`${styles.toggle} ${style.italic ? styles.on : ''}`}
-        onClick={() => onChange({ italic: !style.italic })} title="Italic (Ctrl+I)" style={{ fontStyle: 'italic' }}>I</button>
+      <div className={styles.divider} />
 
-      <input className={styles.color} type="color" value={rgbToHex(style.color)}
-        onChange={e => onChange({ color: hexToRgb(e.target.value) })} title="Text colour" />
+      {/* Font family — Aa button */}
+      <div className={styles.fontWrap}>
+        <button
+          className={`${styles.btn} ${styles.aaBtn}`}
+          onMouseDown={e => { e.preventDefault(); e.stopPropagation() }}
+          onClick={() => setFontOpen(f => !f)}
+          title="Font family"
+        >
+          Aa
+        </button>
+        {fontOpen && (
+          <div className={styles.fontDropdown} data-editui>
+            {displayFontName && (
+              <div className={styles.fontOriginal} title="Original PDF font">
+                Original: {displayFontName}
+              </div>
+            )}
+            {(['Sans-serif', 'Serif', 'Monospace'] as const).map(group => (
+              <div key={group}>
+                <div className={styles.fontGroup}>{group}</div>
+                {FONT_OPTIONS.filter(f => f.group === group).map(f => (
+                  <button key={f.family}
+                    className={`${styles.fontItem} ${style.family === f.family ? styles.fontItemActive : ''}`}
+                    onMouseDown={e => { e.preventDefault(); e.stopPropagation(); onChange({ family: f.family as FontFamily }); setFontOpen(false) }}
+                  >{f.label}</button>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className={styles.divider} />
+
+      {/* Strikethrough */}
+      <button
+        className={styles.btn}
+        style={{ textDecoration: 'line-through' }}
+        onMouseDown={e => { e.preventDefault(); e.stopPropagation() }}
+        onClick={() => onChange({ strikethrough: !style.strikethrough })}
+        title="Strikethrough"
+      >
+        S
+      </button>
+
+      {/* Color */}
+      <button
+        className={styles.colorBtn}
+        style={{ background: rgbToHex(style.color) }}
+        onMouseDown={e => { e.preventDefault(); e.stopPropagation() }}
+        onClick={() => colorRef.current?.click()}
+        title="Text color"
+      />
+      <input
+        ref={colorRef}
+        type="color"
+        className={styles.hiddenColor}
+        value={rgbToHex(style.color)}
+        onChange={e => onChange({ color: hexToRgb(e.target.value) })}
+        data-editui
+      />
+
+      <div className={styles.divider} />
+
+      {/* Delete */}
+      {onDelete && (
+        <button
+          className={`${styles.btn} ${styles.deleteBtn}`}
+          onMouseDown={e => { e.preventDefault(); e.stopPropagation() }}
+          onClick={onDelete}
+          title="Delete this text"
+        >
+          🗑
+        </button>
+      )}
     </div>
   )
-}
-
-// Apply a valid number as the user types (without clobbering an in-progress empty field).
-function commitSizeLive(raw: string, onChange: (p: Partial<EditStyle>) => void) {
-  const n = parseFloat(raw)
-  if (!isNaN(n) && n > 0) onChange({ size: clampSize(n) })
 }

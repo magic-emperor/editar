@@ -11,6 +11,8 @@ export interface TextItem {
   y:          number   // top edge, PDF points, from page top (already flipped)
   w:          number   // width in PDF points
   h:          number   // height (≈ font size) in PDF points
+  baseline:   number   // text baseline, PDF points, from page top (true-edit A3) —
+                        // native: pageHeight - transform[5]; OCR: y + h*0.8 (estimate, no real baseline)
   fontName?:  string   // native font ref (pdf.js) — used by Phase 3 font matching
   source:     'native' | 'ocr'
   confidence?: number  // 0–100, OCR only; undefined for native (treated as certain)
@@ -80,13 +82,17 @@ export interface EditStyle {
   color:    RGB          // text colour
   bold:     boolean
   italic:   boolean
+  strikethrough?: boolean
   family:   FontFamily   // resolved fallback family (name-based; IntelliFont may sharpen later)
   fontName?: string      // original pdf.js font ref — key for embedded-font reuse
   embeddedFont?: Uint8Array  // the document's own font bytes (pdf.js), reused for a pixel-faithful redraw
 }
 
 // A pending edit. `id` is a client-generated key for list/undo bookkeeping.
+// baselineY (true-edit A3): the real text baseline in top-origin PDF points, carried
+// from the source TextItem so export can draw at the true baseline instead of guessing
+// top + 0.8*size. Undefined for 'add' edits (no source item — there's nothing to click).
 export type EditOp =
-  | { id: string; kind: 'replace'; page: number; bbox: EditRect; newText: string; style: EditStyle; bg: RGB }
-  | { id: string; kind: 'add';     page: number; bbox: EditRect; newText: string; style: EditStyle }
+  | { id: string; kind: 'replace'; page: number; bbox: EditRect; newText: string; style: EditStyle; bg: RGB; baselineY?: number }
+  | { id: string; kind: 'add';     page: number; bbox: EditRect; newText: string; style: EditStyle; baselineY?: number }
   | { id: string; kind: 'redact';  page: number; bbox: EditRect; fill: RGB }

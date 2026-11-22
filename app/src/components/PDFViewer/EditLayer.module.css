@@ -2,7 +2,11 @@
   position: absolute;
   inset:    0;
   z-index:  2;            /* above canvas + text layer */
-  overflow: hidden;
+  overflow: visible;      /* allow drag handle / remove btn to extend outside the editBox */
+  /* true-edit A7: dragging a placed box shouldn't select the hidden hit-span text
+     underneath it. Doesn't affect the textarea editor — form controls stay selectable
+     regardless of an ancestor's user-select. */
+  user-select: none;
 }
 .layer.text     { cursor: text; }
 .layer.whiteout { cursor: crosshair; }
@@ -18,24 +22,51 @@
   font-family:     sans-serif;
   line-height:     1;
 }
-.hitSpan:hover { background: rgba(179, 64, 42, 0.10); }
+/* Sejda-style blue selection tint on hover */
+.hitSpan:hover { background: rgba(26, 115, 232, 0.08); outline: 1px solid rgba(26,115,232,0.25); outline-offset: 1px; border-radius: 1px; }
+.hitSpan.active {
+  background:     rgba(26, 115, 232, 0.05);
+  outline:        1.5px solid #1a73e8;
+  outline-offset: 2px;
+  border-radius:  2px;
+}
+
+/* ── Wave animation — fires when entering edit mode ── */
+@keyframes spanPop {
+  0%   { background: rgba(26, 115, 232, 0.28); outline-color: rgba(26, 115, 232, 0.55); }
+  60%  { background: rgba(26, 115, 232, 0.08); outline-color: rgba(26, 115, 232, 0.2); }
+  100% { background: rgba(26, 115, 232, 0.0);  outline-color: transparent; }
+}
+.hitSpan.waveIn {
+  outline: 1px solid transparent;
+  outline-offset: 1px;
+  border-radius: 1px;
+  animation: spanPop 400ms ease-out forwards;
+}
 
 /* A placed replace/add edit (live preview) — draggable */
 .placed {
   position:    absolute;
   display:     flex;
   align-items: center;
-  overflow:    hidden;          /* keep redrawn text within its box (matches export) */
-  white-space: pre;
+  overflow:    visible;
+  white-space: pre-wrap;
+  word-break:  break-word;
   cursor:      move;
+  z-index:     1;            /* above the invisible hit spans, else they swallow clicks/drags */
+  border-radius: 2px;
 }
-.placed:hover { outline: 1px solid rgba(179, 64, 42, 0.5); overflow: visible; }
+.placed:hover { outline: 1px dashed rgba(37, 99, 235, 0.6); }
 .placed span { display: inline-block; pointer-events: none; transform-origin: 0 50%; }
 
 /* White-out / redact box */
 .redact {
   position: absolute;
-  outline:  1px dashed rgba(26, 22, 18, 0.25);
+  outline:  none;
+  border:   none;
+}
+.redact:hover {
+  outline: 1px dashed rgba(179, 64, 42, 0.4);
 }
 
 /* Live drag rectangle while dragging a white-out */
@@ -46,55 +77,117 @@
   pointer-events: none;
 }
 
-/* Inline editor box (wraps textarea + remove + resize handle) */
+/* Inline editor box — for overlay/fallback edits: white background covers original text.
+   For engine edits: .editBoxEngine overrides to transparent (see below). */
 .editBox {
   position:   absolute;
-  z-index:    3;
-  box-shadow: 0 0 0 2px rgba(179, 64, 42, 0.25);
+  z-index:    10;
   border-radius: 2px;
+  background: #ffffff;
+  outline: 1.5px solid #1a73e8;
+  outline-offset: 1px;
+}
+
+/* Layer 1A: When PDFium engine is active, the canvas itself has the original text
+   hidden via render mode 3. No white cover needed — the editBox is transparent
+   so the cursor appears directly "in" the PDF text. */
+.editBoxEngine {
+  background: transparent !important;
+  outline: none !important;
+  box-shadow: none !important;
 }
 .input {
+  display:     block;
   width:       100%;
-  height:      100%;
+  /* When editBox is height:auto (engine line mode), the textarea drives the height.
+     min-height ensures at least one line is visible. */
+  min-height:  1.2em;
   margin:      0;
-  padding:     0 1px;
-  border:      1px solid var(--accent);
+  padding:     0 2px;
+  border:      none;
+  border-radius: 0;
   outline:     none;
-  background:  #fff;
+  background:  transparent;
   resize:      none;
-  overflow:    hidden;
-  white-space: pre;
+  overflow:    visible;
+  white-space: pre-wrap;
+  word-break:  break-word;
   box-sizing:  border-box;
+  user-select: text;
+  cursor:      text;
+  font-family: inherit;
+  caret-color: #2563eb;
+  /* Match PDF line height so wrapped text aligns with the PDF's own grid */
+  line-height: 1.2;
+}
+
+/* Phase 3: For engine text edits, lock to single line so text never wraps or spills onto lines below */
+.engineInput {
+  white-space: pre !important;
+  word-break:  normal !important;
+  overflow:    hidden !important;
+  caret-color: #000 !important;  /* Match PDF text color, not blue */
+  height: 100% !important;
+}
+
+.dragHandle {
+  position:        absolute;
+  top:             -12px;
+  left:            -12px;
+  width:           22px;
+  height:          22px;
+  border-radius:   4px;
+  background:      #2563eb;
+  color:           #ffffff;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  cursor:          grab;
+  font-size:       12px;
+  box-shadow:      0 1px 4px rgba(0, 0, 0, 0.3);
+  z-index:         15;
+  user-select:     none;
+  transition:      transform var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+}
+.dragHandle:hover {
+  background:      #1d4ed8;
+  transform:       scale(1.1);
+}
+.dragHandle:active {
+  cursor:          grabbing;
+  background:      #1e40af;
 }
 
 .removeBtn {
   position:        absolute;
   top:             -10px;
   right:           -10px;
-  width:           18px;
-  height:          18px;
+  width:           20px;
+  height:          20px;
   border:          none;
   border-radius:   50%;
-  background:      var(--accent);
+  background:      #ef4444;
   color:           #fff;
-  font-size:       12px;
+  font-size:       13px;
   line-height:     1;
   cursor:          pointer;
   display:         flex;
   align-items:     center;
   justify-content: center;
   box-shadow:      0 1px 3px rgba(0,0,0,.3);
+  z-index:         15;
 }
-.removeBtn:hover { background: var(--accent-hover, #9a3724); }
+.removeBtn:hover { background: #dc2626; }
 
 .resizeHandle {
   position:      absolute;
-  bottom:        -5px;
-  right:         -5px;
+  bottom:        -6px;
+  right:         -6px;
   width:         12px;
   height:        12px;
-  background:    var(--accent);
+  background:    #2563eb;
   border:        2px solid #fff;
   border-radius: 2px;
   cursor:        nwse-resize;
+  z-index:       15;
 }

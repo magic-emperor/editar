@@ -6,6 +6,13 @@
   background:     var(--paper-card);
   border-left:    1px solid var(--hairline);
   overflow:       hidden;
+  transition:     width 200ms ease;
+}
+
+/* Collapse sidebar entirely in edit mode — TopToolbar + BottomEditBar handle everything */
+.sidebar.editMode {
+  width:   0;
+  border:  none;
 }
 
 .header {
@@ -147,6 +154,21 @@
 }
 
 /* Slider */
+.refreshBtn {
+  border:          1px solid var(--hairline);
+  border-radius:   var(--radius-control);
+  background:      var(--paper-bg);
+  color:           var(--ink-secondary);
+  font-size:       0.75rem;
+  padding:         0.2rem 0.5rem;
+  cursor:          pointer;
+  transition:      background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.refreshBtn:hover {
+  background:      var(--paper-sunken);
+  color:           var(--ink);
+}
+
 .slider {
   width: 100%;
   accent-color: var(--accent);

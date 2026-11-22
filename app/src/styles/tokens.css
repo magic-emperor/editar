@@ -28,20 +28,20 @@
 
 :root {
   /* Surfaces */
-  --paper-bg: #faf6ef;
-  --paper-card: #fffdf8;
-  --paper-sunken: #f3ede2;
-  --hairline: #e5ddd0;
+  --paper-bg: #f8f7f4;
+  --paper-card: #ffffff;
+  --paper-sunken: #edeae4;
+  --hairline: #eae7e1;
 
   /* Ink */
-  --ink: #1a1612;
-  --ink-secondary: #5c554b;
-  --ink-faint: #8a8275;
+  --ink: #1c1917;
+  --ink-secondary: #57534e;
+  --ink-faint: #78716c;
 
-  /* Accent — editor's red pen */
-  --accent: #b3402a;
-  --accent-hover: #96331f;
-  --accent-soft: #f5e3de;
+  /* Accent — terracotta / rust */
+  --accent: #993d31;
+  --accent-hover: #843228;
+  --accent-soft: #faf2ee;
 
   /* Local/processed badge — moss green */
   --moss: #4a6b43;
@@ -49,20 +49,26 @@
 
   /* Type */
   --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
-  --font-ui: 'Source Sans 3', system-ui, -apple-system, sans-serif;
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 
   /* Pressed-ink shadows — soft, never material elevation */
-  --shadow-rest: 0 1px 2px rgba(26, 22, 18, 0.08), 0 4px 16px rgba(26, 22, 18, 0.06);
-  --shadow-raised: 0 2px 4px rgba(26, 22, 18, 0.1), 0 8px 28px rgba(26, 22, 18, 0.1);
+  --shadow-rest: 0 1px 2px rgba(28, 25, 23, 0.05), 0 4px 16px rgba(28, 25, 23, 0.03);
+  --shadow-raised: 0 4px 12px rgba(28, 25, 23, 0.08), 0 12px 32px rgba(28, 25, 23, 0.08);
 
   /* Radii */
-  --radius-control: 6px;
-  --radius-card: 10px;
+  --radius-control: 8px;
+  --radius-card: 14px;
 
   /* Motion */
   --ease: cubic-bezier(0.25, 0.7, 0.4, 1);
   --t-fast: 150ms;
   --t-med: 200ms;
+
+  /* Folio edit-mode blue */
+  --blue:        #1a73e8;
+  --blue-soft:   rgba(26, 115, 232, 0.08);
+  --blue-mid:    rgba(26, 115, 232, 0.25);
+  --blue-border: rgba(26, 115, 232, 0.4);
 }
 
 * {

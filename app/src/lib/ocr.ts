@@ -111,15 +111,20 @@ export async function ocrPage(docId: string, pageIndex: number): Promise<PageTex
   const { data } = await worker.recognize(blob, {}, { blocks: true })
   const words = flattenWords((data as any).blocks)
 
-  const items: TextItem[] = words.map(({ text, confidence, bbox }) => ({
-    str: text,
-    x: bbox.x0 / OCR_SCALE,
-    y: bbox.y0 / OCR_SCALE,           // tesseract origin already top-left
-    w: (bbox.x1 - bbox.x0) / OCR_SCALE,
-    h: (bbox.y1 - bbox.y0) / OCR_SCALE,
-    source: 'ocr',
-    confidence,
-  }))
+  const items: TextItem[] = words.map(({ text, confidence, bbox }) => {
+    const y = bbox.y0 / OCR_SCALE           // tesseract origin already top-left
+    const h = (bbox.y1 - bbox.y0) / OCR_SCALE
+    return {
+      str: text,
+      x: bbox.x0 / OCR_SCALE,
+      y,
+      w: (bbox.x1 - bbox.x0) / OCR_SCALE,
+      h,
+      baseline: y + h * 0.8,  // true-edit A3: no real baseline from OCR box, estimate
+      source: 'ocr',
+      confidence,
+    }
+  })
 
   return {
     items,

@@ -132,3 +132,36 @@
   margin:     0.5rem 0 0;
   line-height: 1.4;
 }
+
+.appliedCard {
+  margin:        0.5rem 0;
+  padding:       0.55rem 0.7rem;
+  background:    #eaf7ee;
+  border:        1px solid #c2e8cc;
+  border-radius: var(--radius-control);
+  text-align:    center;
+}
+
+.appliedNote {
+  font-size:     0.78rem;
+  font-weight:   600;
+  color:         #237841;
+  margin:        0 0 0.4rem;
+}
+
+.downloadBtn {
+  width:         100%;
+  padding:       0.48rem 0;
+  border:        none;
+  border-radius: var(--radius-control);
+  background:    #237841;
+  color:         #ffffff;
+  font-size:     0.82rem;
+  font-weight:   600;
+  font-family:   var(--font-ui);
+  cursor:        pointer;
+  transition:    background var(--t-fast) var(--ease);
+}
+.downloadBtn:hover {
+  background:    #1b6134;
+}

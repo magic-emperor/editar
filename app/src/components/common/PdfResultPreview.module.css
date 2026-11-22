@@ -1,0 +1,179 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--paper-bg, #f8f7f4);
+  padding: 0.85rem;
+  border-radius: 8px;
+  gap: 0.6rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.imageWrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.pdfPageImg {
+  display: block;
+  max-width: 100%;
+  max-height: 420px;
+  border-radius: 6px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  cursor: zoom-in;
+  background: #ffffff;
+  object-fit: contain;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.pdfPageImg:hover {
+  transform: scale(1.01);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.2rem;
+}
+
+.pageBtn {
+  padding: 3px 10px;
+  background: #ffffff;
+  border: 1px solid var(--hairline, #d6d3d1);
+  border-radius: 5px;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink, #1c1917);
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: all 120ms ease;
+}
+
+.pageBtn:hover:not(:disabled) {
+  background: #f5f5f4;
+  border-color: #a8a29e;
+}
+
+.pageBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.pageLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-secondary, #57534e);
+  font-variant-numeric: tabular-nums;
+}
+
+.loadingBox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 1.5rem;
+  font-size: 0.8125rem;
+  color: var(--ink-secondary, #78716c);
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #d6d3d1;
+  border-top-color: #993d31;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.errorBox {
+  padding: 1rem;
+  font-size: 0.8rem;
+  color: #993d31;
+  text-align: center;
+  background: #fef2f2;
+  border-radius: 6px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Lightbox Modal */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  cursor: zoom-out;
+}
+
+.lightboxContent {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  max-width: 90vw;
+  max-height: 90vh;
+  cursor: default;
+}
+
+.lightboxImg {
+  max-width: 85vw;
+  max-height: 80vh;
+  object-fit: contain;
+  border-radius: 6px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  background: #ffffff;
+}
+
+.lightboxClose {
+  position: absolute;
+  top: -14px;
+  right: -14px;
+  background: #ffffff;
+  border: 1px solid #d6d3d1;
+  color: #1c1917;
+  font-size: 1rem;
+  font-weight: 700;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transition: transform 120ms ease;
+}
+
+.lightboxClose:hover {
+  transform: scale(1.1);
+}
+
+.lightboxPagination {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: rgba(0, 0, 0, 0.65);
+  padding: 6px 14px;
+  border-radius: 20px;
+}
+
+.lightboxPageLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+}

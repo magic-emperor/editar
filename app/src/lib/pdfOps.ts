@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts, degrees, rgb, type PDFFont } from 'pdf-lib'
+import { PDFDocument, StandardFonts, degrees, rgb, type PDFFont, PDFName, PDFNumber, PDFRawStream } from 'pdf-lib'
 import fontkit from '@pdf-lib/fontkit'
 import { resolveFont } from './fontResolver'
 import type { EditOp } from './types'
@@ -16,7 +16,7 @@ export type PdfOpRequest =
   | { op: 'remove'; file: Uint8Array; pages: number[] }
   | { op: 'reorder'; file: Uint8Array; newOrder: number[] }
   | { op: 'rotate'; file: Uint8Array; pageIndex: number; rotateDegrees: 90 | 180 | 270 }
-  | { op: 'compress'; file: Uint8Array }
+  | { op: 'compress'; file: Uint8Array; level?: 'low' | 'recommended' | 'extreme'; removeMetadata?: boolean }
   | { op: 'watermark'; file: Uint8Array; text: string; opacity: number; position: WatermarkPos }
   | { op: 'pageNumbers'; file: Uint8Array; startAt: number; position: 'bottom-center' | 'bottom-right' }
   | { op: 'editPage'; file: Uint8Array; edits: EditOp[] }
@@ -31,7 +31,7 @@ export async function execOp(req: PdfOpRequest): Promise<Uint8Array | Uint8Array
     case 'remove':      return removePages(req.file, req.pages)
     case 'reorder':     return reorderPages(req.file, req.newOrder)
     case 'rotate':      return rotatePage(req.file, req.pageIndex, req.rotateDegrees)
-    case 'compress':    return compressPDF(req.file)
+    case 'compress':    return compressPDF(req.file, req.level, req.removeMetadata)
     case 'watermark':   return addWatermark(req.file, req.text, req.opacity, req.position)
     case 'pageNumbers': return addPageNumbers(req.file, req.startAt, req.position)
     case 'editPage':    return editPage(req.file, req.edits)
@@ -137,9 +137,89 @@ async function rotatePage(
   return save(doc)
 }
 
-async function compressPDF(file: Uint8Array): Promise<Uint8Array> {
-  const doc = await PDFDocument.load(file)
+async function compressPDF(
+  file: Uint8Array,
+  level: 'low' | 'recommended' | 'extreme' = 'recommended',
+  removeMetadata = true,
+): Promise<Uint8Array> {
+  const doc = await PDFDocument.load(file, { ignoreEncryption: true })
   assertUnencrypted(doc, 'compress')
+
+  // 1. Strip document metadata, XML schema packets, and unnecessary structures
+  if (removeMetadata) {
+    try {
+      doc.catalog.delete(PDFName.of('Metadata'))
+      doc.catalog.delete(PDFName.of('PieceInfo'))
+      doc.catalog.delete(PDFName.of('StructTreeRoot'))
+      doc.catalog.delete(PDFName.of('OCProperties'))
+      doc.catalog.delete(PDFName.of('SpiderInfo'))
+      doc.setTitle('')
+      doc.setAuthor('')
+      doc.setSubject('')
+      doc.setKeywords([])
+      doc.setProducer('EDITAR')
+      doc.setCreator('EDITAR')
+    } catch (e) {
+      console.warn('Metadata pruning skipped:', e)
+    }
+  }
+
+  // 2. Optimize and recompress embedded images
+  if (level === 'recommended' || level === 'extreme') {
+    const quality = level === 'extreme' ? 0.62 : 0.80
+    const maxDim  = level === 'extreme' ? 1600 : 2200
+
+    if (typeof OffscreenCanvas !== 'undefined' && typeof createImageBitmap !== 'undefined') {
+      try {
+        const indirectObjects = doc.context.enumerateIndirectObjects()
+        for (const [, obj] of indirectObjects) {
+          if (obj instanceof PDFRawStream) {
+            const dict = obj.dict
+            const subtype = dict.get(PDFName.of('Subtype'))
+            if (subtype?.toString() === '/Image') {
+              const filter = dict.get(PDFName.of('Filter'))
+              const filterName = filter?.toString()
+
+              // DCTDecode is JPEG
+              if (filterName === '/DCTDecode' && obj.contents.length > 8192) {
+                try {
+                  const blob = new Blob([obj.contents as BlobPart], { type: 'image/jpeg' })
+                  const bmp = await createImageBitmap(blob)
+                  let w = bmp.width
+                  let h = bmp.height
+                  if (w > maxDim || h > maxDim) {
+                    const ratio = Math.min(maxDim / w, maxDim / h)
+                    w = Math.max(1, Math.round(w * ratio))
+                    h = Math.max(1, Math.round(h * ratio))
+                  }
+                  const canvas = new OffscreenCanvas(w, h)
+                  const ctx = canvas.getContext('2d')
+                  if (ctx) {
+                    ctx.drawImage(bmp, 0, 0, w, h)
+                    const newBlob = await canvas.convertToBlob({ type: 'image/jpeg', quality })
+                    const newBytes = new Uint8Array(await newBlob.arrayBuffer())
+                    // Only apply if the compressed image is actually smaller
+                    if (newBytes.length < obj.contents.length * 0.95) {
+                      (obj as { contents: Uint8Array }).contents = newBytes
+                      dict.set(PDFName.of('Length'), PDFNumber.of(newBytes.length))
+                      dict.set(PDFName.of('Width'), PDFNumber.of(w))
+                      dict.set(PDFName.of('Height'), PDFNumber.of(h))
+                    }
+                  }
+                } catch {
+                  // Keep original image if decoding or canvas conversion failed
+                }
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Image optimization skipped:', err)
+      }
+    }
+  }
+
+  // 3. Save with PDF object stream packaging
   return save(doc, true)
 }
 
@@ -235,20 +315,18 @@ async function editPage(file: Uint8Array, edits: EditOp[]): Promise<Uint8Array> 
       continue
     }
 
+    const font = await resolveFont(doc, e.style, e.newText, fontCache)
+    const size = e.style.size
+
     // replace: cover the original first
     if (e.kind === 'replace') {
       page.drawRectangle({ x, y: ph - (y + h), width: w, height: h, color: rgb(...e.bg) })
     }
 
-    const font = await resolveFont(doc, e.style, e.newText, fontCache)
-    let size = e.style.size
-    // For a replace, shrink to fit the original box width so it never bleeds into neighbours.
-    if (e.kind === 'replace' && e.newText.length > 0) {
-      const tw = font.widthOfTextAtSize(e.newText, size)
-      if (tw > w && tw > 0) size = size * (w / tw)
-    }
-    // Baseline ~0.8 of the cap height below the box top (leaves room for descenders).
-    const baselineFromTop = y + size * 0.8
+    // true-edit A3: use the real baseline captured from the source TextItem when we have
+    // one (replace/add from a click); only guess 0.8*size below the box top when we don't
+    // (e.g. a brand-new 'add' with no source item).
+    const baselineFromTop = e.baselineY ?? (y + size * 0.8)
     page.drawText(e.newText, {
       x: x + size * 0.04,
       y: ph - baselineFromTop,
