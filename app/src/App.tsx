@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react'
 import { useFileStore } from './lib/fileStore'
 import { DropZone } from './components/DropZone/DropZone'
 import { PDFViewer } from './components/PDFViewer/PDFViewer'
-import { Toolbar } from './components/Toolbar/Toolbar'
+import { EditPanel } from './components/Toolbar/EditPanel'
+// import { Toolbar } from './components/Toolbar/Toolbar'
 // import { PrivacyBadge } from './components/PrivacyBadge/PrivacyBadge'
 import { ConvertHub } from './components/Convert/ConvertHub'
 import { ToolPage } from './components/ToolPage/ToolPage'
 import { EditPage } from './components/EditPage/EditPage'
 import { ViewerPage } from './components/ViewerPage/ViewerPage'
+import { MakerIntro } from './components/MakerIntro/MakerIntro'
 import styles from './App.module.css'
 
 type Theme = 'warm' | 'dark'
@@ -15,8 +17,8 @@ type Theme = 'warm' | 'dark'
 function ViewerLayout({ onOpenConvert }: { onOpenConvert: () => void }) {
   return (
     <div className={styles.viewerLayout}>
+      <EditPanel onOpenConvert={onOpenConvert} />
       <PDFViewer onOpenConvert={onOpenConvert} />
-      <Toolbar />
     </div>
   )
 }
@@ -27,6 +29,20 @@ export default function App() {
   const [activeTool,  setActiveTool]  = useState<string | null>(null)
   const [convertOpen, setConvertOpen] = useState(false)
   const [theme, setTheme] = useState<Theme>('warm')
+  const [showIntro, setShowIntro] = useState(() => {
+    try {
+      return !sessionStorage.getItem('editar_intro_seen')
+    } catch {
+      return true
+    }
+  })
+
+  const handleIntroComplete = () => {
+    setShowIntro(false)
+    try {
+      sessionStorage.setItem('editar_intro_seen', '1')
+    } catch {}
+  }
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme === 'dark' ? 'dark' : ''
@@ -87,6 +103,7 @@ export default function App() {
 
   return (
     <div className={styles.appRoot}>
+      {showIntro && <MakerIntro onComplete={handleIntroComplete} />}
       <DropZone
         onOpenTool={setActiveTool}
         theme={theme}

@@ -3,6 +3,8 @@ import { PDFDocument } from 'pdf-lib'
 import { useFileStore } from '../../lib/fileStore'
 import { preloadEngine } from '../../lib/pdfEngine'
 import { PasswordModal } from '../DropZone/PasswordModal'
+import { SiteFooter } from '../Footer/SiteFooter'
+import { DesignerCredit } from '../common/DesignerCredit'
 import styles from './ViewerPage.module.css'
 
 type Mode = 'view' | 'annotate'
@@ -62,11 +64,24 @@ export function ViewerPage({ mode, onBack }: { mode: Mode; onBack: () => void })
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <button className={styles.backBtn} onClick={onBack}>← Back to tools</button>
-        <div className={styles.headerMeta}>
-          <span className={styles.toolName}>{meta.label}</span>
-          <span className={styles.toolNote}>{meta.note}</span>
+        <div className={styles.headerLeft}>
+          <button className={styles.backBtn} onClick={onBack} aria-label="Back to tools">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            <span>Back</span>
+          </button>
+          <div className={styles.logoBadge} onClick={onBack} style={{ cursor: 'pointer' }} title="Return to home screen">
+            <img src="/EDITAR.png" alt="EDITAR" className={styles.logoImg} />
+            <span className={styles.logoText}>EDITAR</span>
+          </div>
+          <div className={styles.headerDivider} />
+          <div className={styles.headerMeta}>
+            <span className={styles.toolName}>{meta.label}</span>
+            <span className={styles.toolNote}>{meta.note}</span>
+          </div>
         </div>
+        <DesignerCredit />
         <span className={styles.badge}>LOCAL</span>
       </header>
 
@@ -111,6 +126,7 @@ export function ViewerPage({ mode, onBack }: { mode: Mode; onBack: () => void })
           onCancel={() => { setPending(null) }}
         />
       )}
+      <SiteFooter />
     </div>
   )
 }

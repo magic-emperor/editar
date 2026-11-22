@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { renderPage } from '../../lib/pdfEngine'
 import type { PageSize } from '../../lib/pdfEngine'
 import type { AffectedPages } from '../../lib/fileStore'
@@ -21,6 +21,10 @@ function Thumbnail({ docId, pageIndex, pageSize, active, marker, onClick }: Thum
   const cancelRef    = useRef<(() => void) | null>(null)
 
   const thumbH = Math.round(pageSize.height * THUMB_SCALE)
+
+  useEffect(() => {
+    rendered.current = false
+  }, [docId])
 
   useEffect(() => {
     const container = containerRef.current
@@ -84,16 +88,28 @@ interface StripProps {
   currentPage:   number
   onPageClick:   (index: number) => void
   affectedPages: AffectedPages | null
+  onRefresh?:    () => void
 }
 
-export function ThumbnailStrip({ docId, pageSizes, currentPage, onPageClick, affectedPages }: StripProps) {
+export function ThumbnailStrip({ docId, pageSizes, currentPage, onPageClick, affectedPages, onRefresh }: StripProps) {
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  const handleRefresh = () => {
+    setRefreshKey(k => k + 1)
+    onRefresh?.()
+  }
+
   return (
     <aside className={styles.strip} aria-label="Page thumbnails">
+      <div className={styles.stripHeader}>
+        <span className={styles.stripTitle}>Pages ({pageSizes.length})</span>
+        <button className={styles.refreshBtn} onClick={handleRefresh} title="Refresh pages">↻</button>
+      </div>
       {pageSizes.map((size, i) => {
         const isAffected = affectedPages?.indices.includes(i) ?? false
         return (
           <Thumbnail
-            key={i}
+            key={`${docId}-v${refreshKey}-p${i}`}
             docId={docId}
             pageIndex={i}
             pageSize={size}

@@ -82,6 +82,7 @@ export interface EditStyle {
   color:    RGB          // text colour
   bold:     boolean
   italic:   boolean
+  strikethrough?: boolean
   family:   FontFamily   // resolved fallback family (name-based; IntelliFont may sharpen later)
   fontName?: string      // original pdf.js font ref — key for embedded-font reuse
   embeddedFont?: Uint8Array  // the document's own font bytes (pdf.js), reused for a pixel-faithful redraw

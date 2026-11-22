@@ -104,7 +104,7 @@
   font-size:       0.62rem;
   text-transform:  uppercase;
   letter-spacing:  0.1em;
-  color:           #dc2626;
+  color:           #993d31;
   font-weight:     800;
   margin:          0.9rem 0.4rem 0.3rem;
   font-family:     monospace;
@@ -137,8 +137,8 @@
 .item:disabled             { opacity: 0.38; cursor: default; }
 .itemActive {
   background:    rgba(220,38,38,0.07);
-  border-color:  #dc2626;
-  color:         #dc2626;
+  border-color:  #993d31;
+  color:         #993d31;
   font-weight:   700;
 }
 .itemCloud { opacity: 0.55; font-style: italic; }
@@ -153,7 +153,7 @@
 }
 .dot_checking { background: #a8a29e; animation: pulse 1.2s ease-in-out infinite; }
 .dot_ok       { background: #16a34a; }
-.dot_offline  { background: #dc2626; }
+.dot_offline  { background: #993d31; }
 
 @keyframes pulse {
   0%, 100% { opacity: 1 } 50% { opacity: 0.3 }
@@ -222,7 +222,7 @@
   transition:     border-color 0.15s, background 0.15s;
   text-align:     center;
 }
-.dropZone:hover { border-color: #dc2626; background: rgba(220,38,38,0.03); }
+.dropZone:hover { border-color: #993d31; background: rgba(220,38,38,0.03); }
 
 .dropZoneCompact {
   padding:   0.85rem 1rem;
@@ -230,7 +230,7 @@
   gap:       0.6rem;
 }
 
-.dragOver { border-color: #dc2626 !important; background: rgba(220,38,38,0.05) !important; }
+.dragOver { border-color: #993d31 !important; background: rgba(220,38,38,0.05) !important; }
 
 .hiddenInput { display: none; }
 
@@ -342,7 +342,7 @@
   transition:    background 0.1s, border-color 0.1s, color 0.1s;
 }
 .toggle:hover:not(.on) { background: var(--paper-sunken); color: var(--ink); }
-.toggle.on { background: #dc2626; border-color: #dc2626; color: #fff; font-weight: 700; }
+.toggle.on { background: #993d31; border-color: #993d31; color: #fff; font-weight: 700; }
 
 .toggleTall {
   display:        flex;
@@ -364,7 +364,7 @@
   padding:        0.7rem 0;
   border:         none;
   border-radius:  10px;
-  background:     #dc2626;
+  background:     #993d31;
   color:          #fff;
   font-family:    var(--font-ui);
   font-size:      0.82rem;
@@ -381,10 +381,10 @@
 .downloadBtn {
   width:          100%;
   padding:        0.7rem 0;
-  border:         2px solid #dc2626;
+  border:         2px solid #993d31;
   border-radius:  10px;
   background:     transparent;
-  color:          #dc2626;
+  color:          #993d31;
   font-family:    var(--font-ui);
   font-size:      0.82rem;
   font-weight:    800;
@@ -393,7 +393,7 @@
   cursor:         pointer;
   transition:     background 0.15s, color 0.15s;
 }
-.downloadBtn:hover { background: #dc2626; color: #fff; }
+.downloadBtn:hover { background: #993d31; color: #fff; }
 
 /* ── Feedback ────────────────────────────────────────────────────────────────── */
 
@@ -740,7 +740,7 @@
 
 .progressFill {
   height:       100%;
-  background:   #dc2626;
+  background:   #993d31;
   border-radius: 3px;
   transition:   width 0.25s ease;
   min-width:    4px;
@@ -817,7 +817,7 @@
 }
 
 .terminalLine { margin: 0; }
-.terminalLineLast { color: #dc2626; font-weight: 700; }
+.terminalLineLast { color: #993d31; font-weight: 700; }
 
 /* ── Conversion history ──────────────────────────────────────────────────────── */
 
@@ -851,7 +851,7 @@
 .historyRow:last-child { border-bottom: none; }
 
 .historyLabel {
-  color:       #dc2626;
+  color:       #993d31;
   font-weight: 700;
   font-size:   0.7rem;
   white-space: nowrap;

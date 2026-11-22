@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
 import { renderPage } from '../../lib/pdfEngine'
+import { renderEnginePage } from '../../lib/editEngine/editEngine'
 import type { PageSize } from '../../lib/pdfEngine'
 import { TextLayer, type SpanMatch } from './TextLayer'
 import { EditLayer } from './EditLayer'
@@ -42,7 +43,7 @@ export function PageCanvas({
   const renderedAt   = useRef<number>(-1)
   const visible      = useRef(false)
   const [isVisible, setIsVisible] = useState(false)
-  const { editMode }   = useEditStore()
+  const { editMode, engineReady, engineRevision, editingEngineLineId } = useEditStore()
   const { aiMode }     = useAIStore()
   const { activeTool } = useAnnotationStore()
 
@@ -55,8 +56,29 @@ export function PageCanvas({
 
   const doRender = useCallback(() => {
     const scale = renderScaleRef.current
-    if (!visible.current || renderedAt.current === scale) return
+    if (!visible.current) return
     cancelRef.current?.()
+
+    if (editMode && engineReady) {
+      // Pass editingEngineLineId so the worker temporarily hides that line's
+      // original text objects — the transparent textarea sits in their place,
+      // making it feel like you are editing the PDF directly (Sejda approach).
+      renderEnginePage(pageIndex, scale, editingEngineLineId ?? undefined)
+        .then(bitmap => {
+          const canvas = canvasRef.current
+          if (!canvas) { bitmap.close(); return }
+          canvas.width = bitmap.width
+          canvas.height = bitmap.height
+          const ctx = canvas.getContext('2d')
+          if (ctx) { ctx.drawImage(bitmap, 0, 0) }
+          bitmap.close()
+          renderedAt.current = scale
+        })
+        .catch(() => {})
+      return
+    }
+
+    if (renderedAt.current === scale) return
     const { promise, cancel } = renderPage(docId, pageIndex, scale)
     cancelRef.current = cancel
     promise.then(bitmap => {
@@ -69,12 +91,12 @@ export function PageCanvas({
       bitmap.close()
       renderedAt.current = scale
     }).catch(() => {/* cancelled or worker error — already handled by engine */})
-  }, [docId, pageIndex])
+  }, [docId, pageIndex, editMode, engineReady, editingEngineLineId])
 
-  // Re-render when scale changes and page is already visible
+  // Re-render when scale, editMode or engineRevision changes and page is already visible
   useEffect(() => {
     if (visible.current) doRender()
-  }, [renderScale, doRender])
+  }, [renderScale, editMode, engineReady, engineRevision, editingEngineLineId, doRender])
 
   // Virtualization: render when in viewport ±600px, release when far away
   useEffect(() => {

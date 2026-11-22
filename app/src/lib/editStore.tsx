@@ -31,15 +31,41 @@ interface EditStoreCtx {
   canUndo: boolean
   canRedo: boolean
   reset: () => void          // drop all edits (on document change / after apply)
+  engineReady: boolean
+  setEngineReady: (b: boolean) => void
+  engineRevision: number
+  bumpEngineRevision: () => void
+  waveTrigger: number
+  waveOrigin: { x: number; y: number } | null
+  triggerWave: (origin?: { x: number; y: number }) => void
+  /** ID of the engine line currently open for editing (or null). Used to hide
+   *  that line's original text objects during the editing pass so the transparent
+   *  textarea appears to edit the PDF directly — no white patch behind the text. */
+  editingEngineLineId: string | null
+  setEditingEngineLineId: (id: string | null) => void
 }
 
 const Ctx = createContext<EditStoreCtx | null>(null)
 
 export function EditStoreProvider({ children }: { children: ReactNode }) {
-  const [editMode, setEditMode] = useState(false)
+  const [editMode, setEditMode] = useState(true)
   const [tool,     setTool]     = useState<EditTool>('select')
   const [edits,    setEdits]    = useState<EditOp[]>([])
+  const [engineReady, setEngineReady] = useState(false)
+  const [engineRevision, setEngineRevision] = useState(0)
+  const [waveTrigger, setWaveTrigger] = useState(0)
+  const [waveOrigin,  setWaveOrigin]  = useState<{ x: number; y: number } | null>(null)
+  const [editingEngineLineId, setEditingEngineLineId] = useState<string | null>(null)
   const redo = useRef<EditOp[]>([])
+
+  const triggerWave = useCallback((origin?: { x: number; y: number }) => {
+    setWaveOrigin(origin ?? null)
+    setWaveTrigger(w => w + 1)
+  }, [])
+
+  const bumpEngineRevision = useCallback(() => {
+    setEngineRevision(r => r + 1)
+  }, [])
 
   const addEdit = useCallback((e: EditOp) => {
     redo.current = []
@@ -71,7 +97,9 @@ export function EditStoreProvider({ children }: { children: ReactNode }) {
     redo.current = []
     setEdits([])
     setTool('select')
-    setEditMode(false)
+    setEditMode(true)
+    setEngineReady(false)
+    setEditingEngineLineId(null)
   }, [])
 
   return (
@@ -80,6 +108,9 @@ export function EditStoreProvider({ children }: { children: ReactNode }) {
       edits, addEdit, updateEdit, removeEdit,
       undo, redo: redoFn, canUndo: edits.length > 0, canRedo: redo.current.length > 0,
       reset,
+      engineReady, setEngineReady, engineRevision, bumpEngineRevision,
+      waveTrigger, waveOrigin, triggerWave,
+      editingEngineLineId, setEditingEngineLineId,
     }}>
       {children}
     </Ctx.Provider>

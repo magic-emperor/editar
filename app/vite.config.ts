@@ -23,16 +23,17 @@ export default defineConfig({
       output: {
         // Function form required by Rolldown (Vite 8)
         manualChunks: (id: string) => {
-          if (id.includes('@hyzyla/pdfium')) return 'pdfium'
-          if (id.includes('pdf-lib'))        return 'pdflib'
-          if (id.includes('pdfjs-dist'))     return 'pdfjs'
-          if (id.includes('tesseract.js'))   return 'tesseract'
+          if (id.includes('@hyzyla/pdfium'))   return 'pdfium'
+          if (id.includes('@embedpdf/pdfium')) return 'pdfium-edit'
+          if (id.includes('pdf-lib'))          return 'pdflib'
+          if (id.includes('pdfjs-dist'))       return 'pdfjs'
+          if (id.includes('tesseract.js'))     return 'tesseract'
         },
       },
     },
   },
   optimizeDeps: {
     // WASM-bearing package must not be pre-bundled by esbuild
-    exclude: ['@hyzyla/pdfium'],
+    exclude: ['@hyzyla/pdfium', '@embedpdf/pdfium'],
   },
 })
