@@ -63,7 +63,39 @@
 }
 
 /* ── Size picker ─────────────────────────────────── */
-.sizeWrap { position: relative; }
+.sizeWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.stepBtn {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  width:           18px;
+  height:          24px;
+  border:          1px solid #d1d5db;
+  border-radius:   4px;
+  background:      #f9fafb;
+  color:           #374151;
+  font-size:       13px;
+  font-weight:     600;
+  cursor:          pointer;
+  padding:         0;
+  flex-shrink:     0;
+  user-select:     none;
+  transition:      background 100ms, border-color 100ms, color 100ms;
+}
+.stepBtn:hover {
+  background:      #f3f4f6;
+  border-color:    #9ca3af;
+  color:           #111827;
+}
+.stepBtn:active {
+  background:      #e5e7eb;
+}
 
 .sizeInput {
   width:         34px;

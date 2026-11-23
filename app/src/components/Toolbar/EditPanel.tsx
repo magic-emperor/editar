@@ -19,7 +19,7 @@ interface EditPanelProps {
 }
 
 export function EditPanel({ onOpenConvert }: EditPanelProps) {
-  const { editMode, setEditMode, tool, setTool, edits, undo, redo, canUndo, canRedo, reset, engineReady, bumpEngineRevision } = useEditStore()
+  const { editMode, setEditMode, tool, setTool, edits, getEdits, undo, redo, canUndo, canRedo, reset, engineReady, bumpEngineRevision, commitActiveEdit } = useEditStore()
   const { file, updateBytes, undoSteps, clear: clearFile } = useFileStore()
   const [running, setRunning] = useState(false)
   const [error,   setError]   = useState<string | null>(null)
@@ -48,10 +48,32 @@ export function EditPanel({ onOpenConvert }: EditPanelProps) {
     }
   }
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!file) return
-    const name = file.name.replace(/\.pdf$/i, '') + '-edited.pdf'
-    downloadBytes(file.bytes, name)
+    setRunning(true)
+    setError(null)
+    try {
+      // Commit any currently open text box edit first
+      await commitActiveEdit()
+      const currentEdits = getEdits()
+
+      let bytesToDownload = file.bytes
+      if (engineReady) {
+        bytesToDownload = await saveEngineDoc()
+      }
+      if (currentEdits.length > 0) {
+        bytesToDownload = await runOp({ op: 'editPage', file: bytesToDownload, edits: currentEdits })
+      }
+      updateBytes(bytesToDownload)
+
+      const name = file.name.endsWith('.pdf') ? file.name : `${file.name}.pdf`
+      downloadBytes(bytesToDownload, name)
+    } catch (e) {
+      console.error('Download failed:', e)
+      setError(String(e).replace(/^Error:\s*/, ''))
+    } finally {
+      setRunning(false)
+    }
   }
 
   const apply = async () => {
@@ -59,13 +81,18 @@ export function EditPanel({ onOpenConvert }: EditPanelProps) {
     setRunning(true)
     setError(null)
     try {
-      let bytes: Uint8Array
+      // 1. Commit active editor so any open text edit is finalized
+      await commitActiveEdit()
+      const currentEdits = getEdits()
+
+      let bytes: Uint8Array = file.bytes
       if (engineReady) {
         bytes = await saveEngineDoc()
         await closeEditSession()
-      } else {
-        if (edits.length === 0) return
-        bytes = await runOp({ op: 'editPage', file: file.bytes, edits })
+      }
+      // 2. Bake in any pending edits (added text, whiteouts, replaces)
+      if (currentEdits.length > 0) {
+        bytes = await runOp({ op: 'editPage', file: bytes, edits: currentEdits })
       }
       updateBytes(bytes)
       setApplied(true)

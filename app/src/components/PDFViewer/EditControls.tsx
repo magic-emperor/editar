@@ -88,9 +88,21 @@ export function EditControls({ style, onChange, position, onDelete }: Props) {
 
       <div className={styles.divider} />
 
-      {/* Font size — Tt label + editable number */}
+      {/* Font size — Tt label + [-] input [+] */}
       <span className={styles.ttLabel}>Tt</span>
       <div className={styles.sizeWrap}>
+        <button
+          type="button"
+          className={styles.stepBtn}
+          data-editui
+          onMouseDown={e => { e.preventDefault(); e.stopPropagation() }}
+          onClick={() => {
+            const next = clampSize(Math.round(style.size) - 1)
+            setSizeStr(String(next))
+            onChange({ size: next })
+          }}
+          title="Decrease font size by 1pt"
+        >−</button>
         <input
           className={styles.sizeInput}
           type="text"
@@ -103,10 +115,23 @@ export function EditControls({ style, onChange, position, onDelete }: Props) {
           onBlurCapture={() => setTimeout(() => setSizeOpen(false), 150)}
           title="Font size (pt)"
         />
+        <button
+          type="button"
+          className={styles.stepBtn}
+          data-editui
+          onMouseDown={e => { e.preventDefault(); e.stopPropagation() }}
+          onClick={() => {
+            const next = clampSize(Math.round(style.size) + 1)
+            setSizeStr(String(next))
+            onChange({ size: next })
+          }}
+          title="Increase font size by 1pt"
+        >+</button>
         {sizeOpen && (
           <div className={styles.sizeDropdown} data-editui>
             {PRESET_SIZES.map(s => (
               <button key={s} className={`${styles.sizeItem} ${Math.round(style.size) === s ? styles.sizeItemActive : ''}`}
+                data-editui
                 onMouseDown={e => { e.preventDefault(); e.stopPropagation(); onChange({ size: s }); setSizeOpen(false) }}
               >{s}</button>
             ))}

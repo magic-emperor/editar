@@ -121,7 +121,7 @@ export function TopToolbar({
             )}
           </div>
           <span className={styles.helpLink}>Help</span>
-          <div className={styles.avatar} title="User">FZ</div>
+          {/* <div className={styles.avatar} title="User">FZ</div> */}
         </div>
       </div>
 

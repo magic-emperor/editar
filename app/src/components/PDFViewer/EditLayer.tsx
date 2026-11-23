@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import fontkit from '@pdf-lib/fontkit'
 import { useEditStore } from '../../lib/editStore'
 import { loadPageTextLayer, getCachedTextLayer } from '../../lib/textLayer'
@@ -187,10 +187,12 @@ function caretFromPoint(x: number, y: number): { node: Node; offset: number } | 
 // function wordAt(text: string, off: number): [number, number] | null { ... }
 
 export function EditLayer({ docId, bytes, pageIndex, zoom, ptToPx, active }: Props) {
-  const { tool, edits, addEdit, updateEdit, removeEdit, engineReady, setEngineReady, bumpEngineRevision, setEditingEngineLineId, waveTrigger, waveOrigin, triggerWave } = useEditStore()
+  const { tool, edits, addEdit, updateEdit, removeEdit, engineReady, setEngineReady, bumpEngineRevision, setEditingEngineLineId, waveTrigger, waveOrigin, triggerWave, registerCommitHandler } = useEditStore()
   const [layer,   setLayer]   = useState<PageTextLayer | null>(() => getCachedTextLayer(docId, pageIndex) ?? null)
   const [pageModel, setPageModel] = useState<PageModel | null>(null)
   const [editing, setEditing] = useState<Editing | null>(null)
+  const editingRef = useRef<Editing | null>(null)
+  editingRef.current = editing
   const [drag,    setDrag]    = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null)
   // Layer 1D: Hide the textarea until PDFium re-renders with the text hidden,
   // so the user never sees both original text and textarea simultaneously.
@@ -360,11 +362,23 @@ export function EditLayer({ docId, bytes, pageIndex, zoom, ptToPx, active }: Pro
           bbox: { ...prev.bbox, x: movingEditor.current!.ox + dx, y: movingEditor.current!.oy + dy },
           baselineY: prev.baselineY !== undefined ? prev.baselineY + dy : undefined,
         } : null)
+      } else if (resizing.current && editing) {
+        const dx = (e.clientX - resizing.current.sx) / scale
+        const dy = (e.clientY - resizing.current.sy) / scale
+        const newW = Math.max(resizing.current.ow + dx, 24)
+        const newH = Math.max(resizing.current.oh + dy, editing.style.size * 0.8)
+        setEditing(prev => prev ? {
+          ...prev,
+          bbox: { ...prev.bbox, w: newW, h: newH }
+        } : null)
       }
     }
     const onWindowUp = () => {
       if (movingEditor.current) {
         movingEditor.current = null
+      }
+      if (resizing.current) {
+        resizing.current = null
       }
     }
     window.addEventListener('mousemove', onWindowMove)
@@ -374,8 +388,6 @@ export function EditLayer({ docId, bytes, pageIndex, zoom, ptToPx, active }: Pro
       window.removeEventListener('mouseup', onWindowUp)
     }
   }, [editing, scale])
-
-  if (!active) return null
 
   const localPoint = (cx: number, cy: number) => {
     const r = rootRef.current!.getBoundingClientRect()
@@ -391,6 +403,18 @@ export function EditLayer({ docId, bytes, pageIndex, zoom, ptToPx, active }: Pro
       sy: e.clientY,
       ox: editing.bbox.x,
       oy: editing.bbox.y,
+    }
+  }
+
+  const onResizeHandleMouseDown = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    e.preventDefault()
+    if (!editing) return
+    resizing.current = {
+      sx: e.clientX,
+      sy: e.clientY,
+      ow: editing.bbox.w,
+      oh: editing.bbox.h,
     }
   }
 
@@ -689,67 +713,89 @@ export function EditLayer({ docId, bytes, pageIndex, zoom, ptToPx, active }: Pro
     })
   }
 
-  const commit = async () => {
-    if (!editing) return
-    const t = editing.value
+  const committingRef = useRef<Promise<void> | null>(null)
+  const commit = useCallback(async () => {
+    const cur = editingRef.current
+    if (!cur) return
+    if (committingRef.current) return committingRef.current
 
-    const styleChanged = !editing.initialStyle ||
-      editing.style.size !== editing.initialStyle.size ||
-      editing.style.bold !== editing.initialStyle.bold ||
-      editing.style.italic !== editing.initialStyle.italic ||
-      editing.style.family !== editing.initialStyle.family ||
-      editing.style.color[0] !== editing.initialStyle.color[0] ||
-      editing.style.color[1] !== editing.initialStyle.color[1] ||
-      editing.style.color[2] !== editing.initialStyle.color[2]
+    const promise = (async () => {
+      const t = cur.value
 
-    if (engineReady && editing.engineLineId) {
-      const posChanged = Boolean(
-        editing.initialBbox && (
-          Math.abs(editing.bbox.x - editing.initialBbox.x) > 1 ||
-          Math.abs(editing.bbox.y - editing.initialBbox.y) > 1
+      const styleChanged = !cur.initialStyle ||
+        cur.style.size !== cur.initialStyle.size ||
+        cur.style.bold !== cur.initialStyle.bold ||
+        cur.style.italic !== cur.initialStyle.italic ||
+        cur.style.family !== cur.initialStyle.family ||
+        cur.style.color[0] !== cur.initialStyle.color[0] ||
+        cur.style.color[1] !== cur.initialStyle.color[1] ||
+        cur.style.color[2] !== cur.initialStyle.color[2]
+
+      if (engineReady && cur.engineLineId) {
+        const posChanged = Boolean(
+          cur.initialBbox && (
+            Math.abs(cur.bbox.x - cur.initialBbox.x) > 1 ||
+            Math.abs(cur.bbox.y - cur.initialBbox.y) > 1
+          )
         )
-      )
-      const newPos = posChanged ? { x: editing.bbox.x, y: editing.bbox.y } : undefined
-      const initialPos = posChanged && editing.initialBbox ? { x: editing.initialBbox.x, y: editing.initialBbox.y } : undefined
+        const newPos = posChanged ? { x: cur.bbox.x, y: cur.bbox.y } : undefined
+        const initialPos = posChanged && cur.initialBbox ? { x: cur.initialBbox.x, y: cur.initialBbox.y } : undefined
 
-      if (t !== editing.original || styleChanged || posChanged) {
-        try {
-          let res: { model: PageModel }
-          if (editing.engineRunObjIndex !== undefined) {
-            // V2: Remove original text object + create fresh one with new text, styles, and position.
-            res = await commitRunV2Edit(
-              pageIndex,
-              editing.engineRunObjIndex,
-              t,
-              editing.style,
-              newPos,
-              initialPos
-            )
-          } else {
-            // Fallback: line-level commit (single-run lines or legacy path)
-            res = await commitLineEdit(pageIndex, editing.engineLineId, t)
+        if (t !== cur.original || styleChanged || posChanged) {
+          try {
+            let res: { model: PageModel }
+            if (cur.engineRunObjIndex !== undefined) {
+              // V2: Remove original text object + create fresh one with new text, styles, and position.
+              res = await commitRunV2Edit(
+                pageIndex,
+                cur.engineRunObjIndex,
+                t,
+                cur.style,
+                newPos,
+                initialPos
+              )
+            } else {
+              // Fallback: line-level commit (single-run lines or legacy path)
+              res = await commitLineEdit(pageIndex, cur.engineLineId, t)
+            }
+            setPageModel(res.model)
+            bumpEngineRevision()
+          } catch (err) {
+            console.error('Engine commit failed:', err)
           }
-          setPageModel(res.model)
-          bumpEngineRevision()
-        } catch (err) {
-          console.error('Engine commit failed:', err)
         }
+        setEditing(null)
+        return
+      }
+
+      if (cur.sourceId) {
+        if (t.trim() === '') removeEdit(cur.sourceId)
+        else updateEdit(cur.sourceId, { newText: t, bbox: cur.bbox, style: cur.style, baselineY: cur.baselineY, bg: cur.bg } as Partial<EditOp>)
+      } else if (cur.kind === 'replace') {
+        if (t.trim() !== '' && (t !== cur.original || styleChanged))
+          addEdit({ id: uuid(), kind: 'replace', page: pageIndex, bbox: cur.bbox, newText: t, style: cur.style, bg: cur.bg ?? [1, 1, 1], baselineY: cur.baselineY })
+      } else if (t.trim() !== '') {
+        addEdit({ id: uuid(), kind: 'add', page: pageIndex, bbox: cur.bbox, newText: t, style: cur.style, baselineY: cur.baselineY })
       }
       setEditing(null)
-      return
-    }
+    })()
 
-    if (editing.sourceId) {
-      if (t.trim() === '') removeEdit(editing.sourceId)
-      else updateEdit(editing.sourceId, { newText: t, bbox: editing.bbox, style: editing.style, baselineY: editing.baselineY, bg: editing.bg } as Partial<EditOp>)
-    } else if (editing.kind === 'replace') {
-      if (t.trim() !== '' && (t !== editing.original || styleChanged))
-        addEdit({ id: uuid(), kind: 'replace', page: pageIndex, bbox: editing.bbox, newText: t, style: editing.style, bg: editing.bg ?? [1, 1, 1], baselineY: editing.baselineY })
-    } else if (t.trim() !== '') {
-      addEdit({ id: uuid(), kind: 'add', page: pageIndex, bbox: editing.bbox, newText: t, style: editing.style, baselineY: editing.baselineY })
+    committingRef.current = promise
+    try {
+      await promise
+    } finally {
+      committingRef.current = null
     }
-    setEditing(null)
-  }
+  }, [engineReady, pageIndex, bumpEngineRevision, removeEdit, updateEdit, addEdit])
+
+  useEffect(() => {
+    if (editing) {
+      registerCommitHandler(commit)
+    } else {
+      registerCommitHandler(null)
+    }
+    return () => { registerCommitHandler(null) }
+  }, [editing, commit, registerCommitHandler])
 
   const deleteCurrentText = async () => {
     if (!editing) return
@@ -807,6 +853,8 @@ export function EditLayer({ docId, bytes, pageIndex, zoom, ptToPx, active }: Pro
         ? { left: controlsLeft, top: editorTop - TOOLBAR_H }
         : { left: controlsLeft, top: editorTop + editing.bbox.h * scale + 8 })
     : {}
+
+  if (!active) return null
 
   return (
     <div
@@ -902,7 +950,6 @@ export function EditLayer({ docId, bytes, pageIndex, zoom, ptToPx, active }: Pro
               value={editing.value}
               spellCheck={false}
               onChange={e => setEditing({ ...editing, value: e.target.value })}
-              onBlur={() => commit()}
               onKeyDown={e => {
                 const mod = e.ctrlKey || e.metaKey
                 if (mod && e.key.toLowerCase() === 'b') { e.preventDefault(); setEditing({ ...editing, style: { ...editing.style, bold: !editing.style.bold } }) }
@@ -917,6 +964,13 @@ export function EditLayer({ docId, bytes, pageIndex, zoom, ptToPx, active }: Pro
                 // Layer 1D: hide until PDFium re-renders with text hidden
                 opacity: renderReady ? 1 : 0,
               }}
+            />
+            {/* Resize handle — drag to expand/shrink bounding box */}
+            <div
+              className={styles.resizeHandle}
+              data-editui
+              onMouseDown={onResizeHandleMouseDown}
+              title="Drag to resize text box"
             />
           </div>
         </>

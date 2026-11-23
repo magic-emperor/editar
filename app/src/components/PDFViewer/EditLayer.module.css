@@ -189,5 +189,7 @@
   border:        2px solid #fff;
   border-radius: 2px;
   cursor:        nwse-resize;
+  user-select:   none;
+  touch-action:  none;
   z-index:       15;
 }
