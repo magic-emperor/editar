@@ -43,6 +43,9 @@ interface EditStoreCtx {
    *  textarea appears to edit the PDF directly — no white patch behind the text. */
   editingEngineLineId: string | null
   setEditingEngineLineId: (id: string | null) => void
+  registerCommitHandler: (fn: (() => Promise<void>) | null) => void
+  commitActiveEdit: () => Promise<void>
+  getEdits: () => EditOp[]
 }
 
 const Ctx = createContext<EditStoreCtx | null>(null)
@@ -51,12 +54,27 @@ export function EditStoreProvider({ children }: { children: ReactNode }) {
   const [editMode, setEditMode] = useState(true)
   const [tool,     setTool]     = useState<EditTool>('select')
   const [edits,    setEdits]    = useState<EditOp[]>([])
+  const editsRef = useRef<EditOp[]>([])
+  editsRef.current = edits
   const [engineReady, setEngineReady] = useState(false)
   const [engineRevision, setEngineRevision] = useState(0)
   const [waveTrigger, setWaveTrigger] = useState(0)
   const [waveOrigin,  setWaveOrigin]  = useState<{ x: number; y: number } | null>(null)
   const [editingEngineLineId, setEditingEngineLineId] = useState<string | null>(null)
   const redo = useRef<EditOp[]>([])
+  const commitHandlerRef = useRef<(() => Promise<void>) | null>(null)
+
+  const registerCommitHandler = useCallback((fn: (() => Promise<void>) | null) => {
+    commitHandlerRef.current = fn
+  }, [])
+
+  const commitActiveEdit = useCallback(async () => {
+    if (commitHandlerRef.current) {
+      await commitHandlerRef.current()
+    }
+  }, [])
+
+  const getEdits = useCallback(() => editsRef.current, [])
 
   const triggerWave = useCallback((origin?: { x: number; y: number }) => {
     setWaveOrigin(origin ?? null)
@@ -69,32 +87,39 @@ export function EditStoreProvider({ children }: { children: ReactNode }) {
 
   const addEdit = useCallback((e: EditOp) => {
     redo.current = []
-    setEdits(prev => [...prev, e])
+    editsRef.current = [...editsRef.current, e]
+    setEdits(editsRef.current)
   }, [])
 
   const updateEdit = useCallback((id: string, patch: Partial<EditOp>) => {
-    setEdits(prev => prev.map(e => (e.id === id ? { ...e, ...patch } as EditOp : e)))
+    editsRef.current = editsRef.current.map(e => (e.id === id ? { ...e, ...patch } as EditOp : e))
+    setEdits(editsRef.current)
   }, [])
 
   const removeEdit = useCallback((id: string) => {
-    setEdits(prev => prev.filter(e => e.id !== id))
+    editsRef.current = editsRef.current.filter(e => e.id !== id)
+    setEdits(editsRef.current)
   }, [])
 
   const undo = useCallback(() => {
-    setEdits(prev => {
-      if (prev.length === 0) return prev
-      redo.current.push(prev[prev.length - 1])
-      return prev.slice(0, -1)
-    })
+    if (editsRef.current.length === 0) return
+    const last = editsRef.current[editsRef.current.length - 1]
+    redo.current.push(last)
+    editsRef.current = editsRef.current.slice(0, -1)
+    setEdits(editsRef.current)
   }, [])
 
   const redoFn = useCallback(() => {
     const e = redo.current.pop()
-    if (e) setEdits(prev => [...prev, e])
+    if (e) {
+      editsRef.current = [...editsRef.current, e]
+      setEdits(editsRef.current)
+    }
   }, [])
 
   const reset = useCallback(() => {
     redo.current = []
+    editsRef.current = []
     setEdits([])
     setTool('select')
     setEditMode(true)
@@ -111,6 +136,8 @@ export function EditStoreProvider({ children }: { children: ReactNode }) {
       engineReady, setEngineReady, engineRevision, bumpEngineRevision,
       waveTrigger, waveOrigin, triggerWave,
       editingEngineLineId, setEditingEngineLineId,
+      registerCommitHandler, commitActiveEdit,
+      getEdits,
     }}>
       {children}
     </Ctx.Provider>

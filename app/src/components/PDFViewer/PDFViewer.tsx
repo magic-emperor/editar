@@ -183,12 +183,15 @@ export function PDFViewer({ onOpenConvert: _onOpenConvert }: { onOpenConvert: ()
 
   const scrollRef   = useRef<HTMLDivElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastFileNameRef = useRef<string | null>(null)
 
   // Open document in engine when file changes
   useEffect(() => {
     if (!file) return
     let cancelled = false
     let openedId: string | null = null
+    const isNewFile = lastFileNameRef.current !== file.name
+    lastFileNameRef.current = file.name
     setError(null)
     resetEdits()   // pending edits don't carry across documents (incl. post-apply reopen)
 
@@ -201,12 +204,14 @@ export function PDFViewer({ onOpenConvert: _onOpenConvert }: { onOpenConvert: ()
         setDocId(docId)
         setStoreDocId(docId)
         setPageSizes(pageSizes)
-        setCurrentPage(0)
+        if (isNewFile) {
+          setCurrentPage(0)
+          scrollRef.current?.scrollTo({ top: 0 })
+        }
         setPageCount(pageSizes.length)
         setAffectedPages(null)
         setMatches([])
         setScanned(0)
-        scrollRef.current?.scrollTo({ top: 0 })
       })
       .catch(() => {
         if (!cancelled) setError('This PDF appears to be damaged and could not be opened.')
